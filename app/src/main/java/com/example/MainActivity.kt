@@ -1,16 +1,11 @@
 package com.example
 
-import android.Manifest
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,22 +24,14 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.NearMe
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Apartment
-import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,14 +42,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -73,10 +59,12 @@ import com.example.ui.components.AccommodationDetailsSheet
 import com.example.ui.components.AddEditAccommodationDialog
 import com.example.ui.components.AdminLoginDialog
 import com.example.ui.components.HeaderBar
+import com.example.ui.components.NotificationAlertBanner
+import com.example.ui.components.ReportIssueDialog
+import com.example.ui.components.RequirementsDialog
 import com.example.ui.components.WhatsAppGroupDialog
 import com.example.ui.components.ZawitcoCompanyLogo
-import com.example.ui.theme.DarkGreen
-import com.example.ui.theme.LightGreen
+import com.example.ui.screens.LoginScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
@@ -87,13 +75,17 @@ import com.example.ui.theme.ZawitcoBlue
 import com.example.ui.theme.ZawitcoLightBlue
 import com.example.ui.theme.ZawitcoOrange
 import com.example.ui.viewmodel.AccommodationViewModel
-import com.example.util.GpsLocationHelper
+import com.example.ui.viewmodel.UserRole
 
 class MainActivity : ComponentActivity() {
 
   private val viewModel: AccommodationViewModel by viewModels {
     val db = AppDatabase.getDatabase(applicationContext, rememberCoroutineScopeOrGlobal())
-    val repository = AccommodationRepository(db.accommodationDao())
+    val repository = AccommodationRepository(
+      dao = db.accommodationDao(),
+      reqDao = db.requirementDao(),
+      reportDao = db.reportDao()
+    )
     AccommodationViewModel.provideFactory(repository)
   }
 
@@ -119,12 +111,23 @@ fun ZawitcoAccommodationApp(
 ) {
   val context = LocalContext.current
 
+  val currentUserRole by viewModel.currentUserRole.collectAsStateWithLifecycle()
   val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
   val accommodations by viewModel.accommodations.collectAsStateWithLifecycle()
   val selectedAccommodation by viewModel.selectedAccommodation.collectAsStateWithLifecycle()
   val isAddEditDialogOpen by viewModel.isAddEditDialogOpen.collectAsStateWithLifecycle()
   val editingAccommodation by viewModel.editingAccommodation.collectAsStateWithLifecycle()
-  val groundingState by viewModel.groundingState.collectAsStateWithLifecycle()
+
+  val allRequirements by viewModel.allRequirements.collectAsStateWithLifecycle()
+  val allReports by viewModel.allReports.collectAsStateWithLifecycle()
+  val pendingRequirementsCount by viewModel.pendingRequirementsCount.collectAsStateWithLifecycle()
+  val pendingReportsCount by viewModel.pendingReportsCount.collectAsStateWithLifecycle()
+
+  val selectedAccForReq by viewModel.selectedAccommodationForRequirements.collectAsStateWithLifecycle()
+  val currentRequirements by viewModel.currentAccommodationRequirements.collectAsStateWithLifecycle()
+
+  val selectedAccForRep by viewModel.selectedAccommodationForReports.collectAsStateWithLifecycle()
+  val currentReports by viewModel.currentAccommodationReports.collectAsStateWithLifecycle()
 
   val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycle()
   val adminPin by viewModel.adminPin.collectAsStateWithLifecycle()
@@ -133,39 +136,14 @@ fun ZawitcoAccommodationApp(
   val globalWhatsAppUrl by viewModel.globalWhatsAppUrl.collectAsStateWithLifecycle()
   val showWhatsAppDialog by viewModel.showWhatsAppDialog.collectAsStateWithLifecycle()
 
-  val userGpsCoordinates by viewModel.userGpsCoordinates.collectAsStateWithLifecycle()
-  val isGpsSortActive by viewModel.isGpsSortActive.collectAsStateWithLifecycle()
-  val isGpsLocating by viewModel.isGpsLocating.collectAsStateWithLifecycle()
-
-  fun requestUserGps() {
-    viewModel.setGpsLocating(true)
-    GpsLocationHelper.getCurrentCoordinates(
-      context = context,
-      onSuccess = { lat, lng ->
-        viewModel.setUserGpsCoordinates(lat, lng)
-        if (!isGpsSortActive) {
-          viewModel.toggleGpsSort()
-        }
-        Toast.makeText(context, "GPS location active: ${String.format("%.4f", lat)}, ${String.format("%.4f", lng)}", Toast.LENGTH_SHORT).show()
-      },
-      onError = { error ->
-        viewModel.setGpsLocating(false)
-        Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-      }
+  // 1st screen on app launch: Professional Login Interface
+  if (currentUserRole == UserRole.LOGGED_OUT) {
+    LoginScreen(
+      viewModel = viewModel,
+      onLoginSuccess = { /* Automatically switches to home screen */ },
+      modifier = modifier
     )
-  }
-
-  val locationPermissionLauncher = rememberLauncherForActivityResult(
-    contract = ActivityResultContracts.RequestMultiplePermissions()
-  ) { permissions ->
-    val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-        permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-    if (granted) {
-      requestUserGps()
-    } else {
-      viewModel.setGpsLocating(false)
-      Toast.makeText(context, "Location permission denied.", Toast.LENGTH_SHORT).show()
-    }
+    return
   }
 
   Scaffold(
@@ -177,7 +155,8 @@ fun ZawitcoAccommodationApp(
           isAdmin = isAdmin,
           onAdminClick = { viewModel.openAdminDialog() },
           onWhatsAppClick = { viewModel.openWhatsAppDialog() },
-          onAddNewClick = { viewModel.openAddDialog() }
+          onAddNewClick = { viewModel.openAddDialog() },
+          onLogout = { viewModel.logout() }
         )
       }
     }
@@ -187,7 +166,7 @@ fun ZawitcoAccommodationApp(
         .fillMaxSize()
         .padding(innerPadding)
     ) {
-      // Search Bar and GPS Quick Action Section
+      // Top Controls Section: Search Bar, Notifications Banner, WhatsApp Shortcut
       Column(
         modifier = Modifier
           .fillMaxWidth()
@@ -234,70 +213,33 @@ fun ZawitcoAccommodationApp(
             .testTag("search_input")
         )
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // NOTIFICATIONS ALERT BANNER
+        // Displays active notifications if any accommodation has requirements or issue reports
+        NotificationAlertBanner(
+          activeRequirementsCount = pendingRequirementsCount,
+          activeReportsCount = pendingReportsCount,
+          onOpenRequirements = {
+            accommodations.firstOrNull()?.let { firstAcc ->
+              viewModel.openRequirementsDialog(firstAcc)
+            }
+          },
+          onOpenReports = {
+            accommodations.firstOrNull()?.let { firstAcc ->
+              viewModel.openReportsDialog(firstAcc)
+            }
+          }
+        )
+
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Quick Tools Row: GPS Nearby Filter & WhatsApp Group Shortcut
+        // WhatsApp Community Group link
         Row(
           modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
+          horizontalArrangement = Arrangement.End,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          // GPS Distance Sorting Chip
-          FilterChip(
-            selected = isGpsSortActive,
-            onClick = {
-              if (userGpsCoordinates == null) {
-                if (GpsLocationHelper.hasLocationPermission(context)) {
-                  requestUserGps()
-                } else {
-                  locationPermissionLauncher.launch(
-                    arrayOf(
-                      Manifest.permission.ACCESS_FINE_LOCATION,
-                      Manifest.permission.ACCESS_COARSE_LOCATION
-                    )
-                  )
-                }
-              } else {
-                viewModel.toggleGpsSort()
-              }
-            },
-            label = {
-              if (isGpsLocating) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
-                  Spacer(modifier = Modifier.width(6.dp))
-                  Text("Detecting GPS...")
-                }
-              } else {
-                Text(
-                  text = if (isGpsSortActive) "Nearest by GPS (Active)" else "Sort by GPS Proximity",
-                  fontSize = 12.sp,
-                  fontWeight = if (isGpsSortActive) FontWeight.Bold else FontWeight.Medium
-                )
-              }
-            },
-            leadingIcon = {
-              Icon(
-                imageVector = if (isGpsSortActive) Icons.Filled.NearMe else Icons.Default.MyLocation,
-                contentDescription = "GPS Sort",
-                tint = if (isGpsSortActive) ZawitcoBlue else Slate500,
-                modifier = Modifier.size(16.dp)
-              )
-            },
-            colors = FilterChipDefaults.filterChipColors(
-              selectedContainerColor = ZawitcoLightBlue,
-              selectedLabelColor = ZawitcoBlue
-            ),
-            border = FilterChipDefaults.filterChipBorder(
-              borderColor = if (isGpsSortActive) ZawitcoBlue else Slate200,
-              enabled = true,
-              selected = isGpsSortActive
-            ),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.testTag("gps_sort_filter_chip")
-          )
-
-          // WhatsApp Group Community Quick Badge
           Surface(
             onClick = { viewModel.openWhatsAppDialog() },
             shape = RoundedCornerShape(10.dp),
@@ -317,7 +259,7 @@ fun ZawitcoAccommodationApp(
               )
               Spacer(modifier = Modifier.width(4.dp))
               Text(
-                text = "WhatsApp Group",
+                text = "Zawitco WhatsApp Group",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF128C7E)
@@ -387,10 +329,18 @@ fun ZawitcoAccommodationApp(
             items = accommodations,
             key = { it.id }
           ) { item ->
+            val itemReqCount = remember(allRequirements, item.id) {
+              allRequirements.count { it.accommodationId == item.id && it.status != "Fulfilled" }
+            }
+            val itemRepCount = remember(allReports, item.id) {
+              allReports.count { it.accommodationId == item.id && it.status != "Resolved" }
+            }
+
             AccommodationCard(
               accommodation = item,
               isAdmin = isAdmin,
-              userGpsCoordinates = userGpsCoordinates,
+              pendingRequirementsCount = itemReqCount,
+              pendingReportsCount = itemRepCount,
               onViewDetails = { viewModel.selectAccommodation(item) },
               onEdit = { viewModel.openEditDialog(item) },
               onDelete = { viewModel.deleteAccommodation(item) }
@@ -428,7 +378,7 @@ fun ZawitcoAccommodationApp(
     AddEditAccommodationDialog(
       initialItem = editingAccommodation,
       onDismiss = { viewModel.closeAddEditDialog() },
-      onSave = { id, area, villa, floor, room, worker, owner, mapsUrl, lat, lng, img, notes, whatsapp ->
+      onSave = { id, area, villa, floor, room, worker, owner, mapsUrl, lat, lng, img, billingImg, doorImg, notes, whatsapp ->
         viewModel.saveAccommodation(
           id = id,
           areaName = area,
@@ -441,6 +391,8 @@ fun ZawitcoAccommodationApp(
           latitude = lat,
           longitude = lng,
           buildingImageUri = img,
+          billingPictureUri = billingImg,
+          doorPictureUri = doorImg,
           notes = notes,
           whatsappGroupUrl = whatsapp
         )
@@ -453,24 +405,54 @@ fun ZawitcoAccommodationApp(
 
   // Details Sheet Dialog
   selectedAccommodation?.let { item ->
+    val itemReqCount = allRequirements.count { it.accommodationId == item.id && it.status != "Fulfilled" }
+    val itemRepCount = allReports.count { it.accommodationId == item.id && it.status != "Resolved" }
+
     AccommodationDetailsSheet(
       accommodation = item,
-      groundingState = groundingState,
-      onDismiss = { viewModel.clearSelectedAccommodation() },
-      onFetchGrounding = { queryType, customPrompt ->
-        viewModel.fetchMapsGrounding(item, queryType, customPrompt)
+      requirementsCount = itemReqCount,
+      reportsCount = itemRepCount,
+      onOpenRequirements = { viewModel.openRequirementsDialog(item) },
+      onOpenReports = { viewModel.openReportsDialog(item) },
+      onDismiss = { viewModel.clearSelectedAccommodation() }
+    )
+  }
+
+  // Requirements Dialog (Bed 🛌, Mattress, Gas stove, Gas cylinder, Electric stove, Bicycle...)
+  selectedAccForReq?.let { acc ->
+    RequirementsDialog(
+      accommodation = acc,
+      requirements = currentRequirements,
+      isAdmin = isAdmin,
+      onDismiss = { viewModel.closeRequirementsDialog() },
+      onAddRequirement = { accId, item, qty, urgency, reqBy, notes ->
+        viewModel.addRequirement(accId, item, qty, urgency, reqBy, notes)
+      },
+      onUpdateStatus = { req, status ->
+        viewModel.updateRequirementStatus(req, status)
+      },
+      onDeleteRequirement = { req ->
+        viewModel.deleteRequirement(req)
       }
     )
   }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-  Text(text = "Hello $name!", modifier = modifier)
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-  MyApplicationTheme { Greeting("Android") }
+  // Issue / Report Dialog
+  selectedAccForRep?.let { acc ->
+    ReportIssueDialog(
+      accommodation = acc,
+      reports = currentReports,
+      isAdmin = isAdmin,
+      onDismiss = { viewModel.closeReportsDialog() },
+      onAddReport = { accId, cat, title, desc, sev, repBy, phone ->
+        viewModel.addReport(accId, cat, title, desc, sev, repBy, phone)
+      },
+      onUpdateStatus = { rep, status ->
+        viewModel.updateReportStatus(rep, status)
+      },
+      onDeleteReport = { rep ->
+        viewModel.deleteReport(rep)
+      }
+    )
+  }
 }

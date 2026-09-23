@@ -6,16 +6,29 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.Accommodation
+import com.example.data.model.AccommodationReport
+import com.example.data.model.AccommodationRequirement
 import com.example.data.model.Location
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-@Database(entities = [Accommodation::class, Location::class], version = 3, exportSchema = false)
+@Database(
+  entities = [
+    Accommodation::class,
+    Location::class,
+    AccommodationRequirement::class,
+    AccommodationReport::class
+  ],
+  version = 4,
+  exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
 
   abstract fun accommodationDao(): AccommodationDao
   abstract fun locationDao(): LocationDao
+  abstract fun requirementDao(): AccommodationRequirementDao
+  abstract fun reportDao(): AccommodationReportDao
 
   companion object {
     @Volatile
@@ -43,12 +56,22 @@ abstract class AppDatabase : RoomDatabase() {
         super.onCreate(db)
         INSTANCE?.let { database ->
           scope.launch(Dispatchers.IO) {
-            populateInitialData(database.accommodationDao(), database.locationDao())
+            populateInitialData(
+              database.accommodationDao(),
+              database.locationDao(),
+              database.requirementDao(),
+              database.reportDao()
+            )
           }
         }
       }
 
-      suspend fun populateInitialData(dao: AccommodationDao, locDao: LocationDao) {
+      suspend fun populateInitialData(
+        dao: AccommodationDao,
+        locDao: LocationDao,
+        reqDao: AccommodationRequirementDao,
+        reportDao: AccommodationReportDao
+      ) {
         val initialAccommodations = listOf(
           Accommodation(
             areaName = "Al Olaya District",
@@ -143,6 +166,43 @@ abstract class AppDatabase : RoomDatabase() {
           )
         )
         locDao.insertAll(initialLocations)
+
+        // Seed sample requirement & report so notification and data display are immediately visible & testable
+        val initialRequirements = listOf(
+          AccommodationRequirement(
+            accommodationId = 1L,
+            itemName = "Bed 🛌",
+            quantity = 2,
+            urgency = "Urgent",
+            status = "Pending",
+            requestedBy = "Room 201 occupants",
+            notes = "Two single beds required for new project staff"
+          ),
+          AccommodationRequirement(
+            accommodationId = 1L,
+            itemName = "Gas Cylinder",
+            quantity = 1,
+            urgency = "Normal",
+            status = "Pending",
+            requestedBy = "Supervisor",
+            notes = "Kitchen refill required"
+          )
+        )
+        reqDao.insertAll(initialRequirements)
+
+        val initialReports = listOf(
+          AccommodationReport(
+            accommodationId = 1L,
+            issueCategory = "AC/Cooling",
+            title = "AC cooling issue in room 202",
+            description = "Master split AC is blowing warm air, needs technician gas check or filter clean.",
+            severity = "High",
+            status = "Open",
+            reportedBy = "Abdullah Al-Mansoor",
+            reporterPhone = "+966 50 123 4567"
+          )
+        )
+        reportDao.insertAll(initialReports)
       }
     }
   }

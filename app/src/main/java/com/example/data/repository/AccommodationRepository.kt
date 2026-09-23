@@ -1,10 +1,18 @@
 package com.example.data.repository
 
 import com.example.data.local.AccommodationDao
+import com.example.data.local.AccommodationReportDao
+import com.example.data.local.AccommodationRequirementDao
 import com.example.data.model.Accommodation
+import com.example.data.model.AccommodationReport
+import com.example.data.model.AccommodationRequirement
 import kotlinx.coroutines.flow.Flow
 
-class AccommodationRepository(private val dao: AccommodationDao) {
+class AccommodationRepository(
+  private val dao: AccommodationDao,
+  private val reqDao: AccommodationRequirementDao,
+  private val reportDao: AccommodationReportDao
+) {
 
   val allAccommodations: Flow<List<Accommodation>> = dao.getAllAccommodations()
 
@@ -25,6 +33,60 @@ class AccommodationRepository(private val dao: AccommodationDao) {
   suspend fun delete(accommodation: Accommodation) = dao.deleteAccommodation(accommodation)
 
   suspend fun deleteById(id: Long) = dao.deleteAccommodationById(id)
+
+  // ==========================================
+  // REQUIREMENTS OPERATIONS
+  // ==========================================
+  fun getRequirementsForAccommodation(accId: Long): Flow<List<AccommodationRequirement>> =
+    reqDao.getRequirementsForAccommodation(accId)
+
+  fun getAllRequirements(): Flow<List<AccommodationRequirement>> =
+    reqDao.getAllRequirements()
+
+  fun getTotalRequirementsCount(): Flow<Int> =
+    reqDao.getTotalRequirementsCount()
+
+  fun getActiveRequirementsCountForAcc(accId: Long): Flow<Int> =
+    reqDao.getActiveRequirementsCountForAcc(accId)
+
+  suspend fun insertRequirement(req: AccommodationRequirement): Long =
+    reqDao.insertRequirement(req)
+
+  suspend fun updateRequirement(req: AccommodationRequirement) =
+    reqDao.updateRequirement(req)
+
+  suspend fun deleteRequirement(req: AccommodationRequirement) =
+    reqDao.deleteRequirement(req)
+
+  suspend fun deleteRequirementById(id: Long) =
+    reqDao.deleteById(id)
+
+  // ==========================================
+  // REPORTS OPERATIONS
+  // ==========================================
+  fun getReportsForAccommodation(accId: Long): Flow<List<AccommodationReport>> =
+    reportDao.getReportsForAccommodation(accId)
+
+  fun getAllReports(): Flow<List<AccommodationReport>> =
+    reportDao.getAllReports()
+
+  fun getTotalReportsCount(): Flow<Int> =
+    reportDao.getTotalReportsCount()
+
+  fun getActiveReportsCountForAcc(accId: Long): Flow<Int> =
+    reportDao.getActiveReportsCountForAcc(accId)
+
+  suspend fun insertReport(report: AccommodationReport): Long =
+    reportDao.insertReport(report)
+
+  suspend fun updateReport(report: AccommodationReport) =
+    reportDao.updateReport(report)
+
+  suspend fun deleteReport(report: AccommodationReport) =
+    reportDao.deleteReport(report)
+
+  suspend fun deleteReportById(id: Long) =
+    reportDao.deleteById(id)
 
   suspend fun ensureDefaultDataIfEmpty() {
     if (dao.getCount() == 0) {

@@ -2,6 +2,7 @@ package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,12 +18,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MeetingRoom
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MeetingRoom
 import androidx.compose.material.icons.outlined.Phone
-import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -48,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.Accommodation
+import com.example.ui.theme.DarkGreen
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
@@ -61,7 +65,8 @@ import com.example.ui.theme.ZawitcoOrange
 fun AccommodationCard(
   accommodation: Accommodation,
   isAdmin: Boolean,
-  userGpsCoordinates: Pair<Double, Double>? = null,
+  pendingRequirementsCount: Int = 0,
+  pendingReportsCount: Int = 0,
   onViewDetails: () -> Unit,
   onEdit: () -> Unit,
   onDelete: () -> Unit,
@@ -69,18 +74,9 @@ fun AccommodationCard(
 ) {
   var showDeleteConfirm by remember { mutableStateOf(false) }
 
-  // Calculate distance if GPS is active
-  val distanceStr = remember(userGpsCoordinates, accommodation.latitude, accommodation.longitude) {
-    if (userGpsCoordinates != null && accommodation.latitude != null && accommodation.longitude != null) {
-      val distKm = com.example.util.GpsLocationHelper.calculateDistanceKm(
-        userGpsCoordinates.first,
-        userGpsCoordinates.second,
-        accommodation.latitude,
-        accommodation.longitude
-      )
-      com.example.util.GpsLocationHelper.formatDistance(distKm)
-    } else null
-  }
+  val billingImg = accommodation.billingPictureUri ?: accommodation.buildingImageUri
+  val doorImg = accommodation.doorPictureUri
+  val hasPendingAlert = pendingRequirementsCount > 0 || pendingReportsCount > 0
 
   if (showDeleteConfirm) {
     AlertDialog(
@@ -116,7 +112,7 @@ fun AccommodationCard(
     colors = CardDefaults.cardColors(
       containerColor = MaterialTheme.colorScheme.surface
     ),
-    border = BorderStroke(1.dp, Slate200),
+    border = BorderStroke(1.dp, if (hasPendingAlert) Color(0xFFFDBA74) else Slate200),
     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
   ) {
     Column(
@@ -124,7 +120,7 @@ fun AccommodationCard(
         .fillMaxWidth()
         .padding(16.dp)
     ) {
-      // Top row: Area Name and action buttons
+      // Top row: Area Name, Notification Badge, and Action buttons
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -152,29 +148,34 @@ fun AccommodationCard(
           Column {
             Text(
               text = accommodation.areaName,
-              fontSize = 19.sp,
+              fontSize = 18.sp,
               fontWeight = FontWeight.Bold,
               color = ZawitcoBlue,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis
             )
-            if (distanceStr != null) {
+
+            // Notifications alert indicator if requirements or reports exist
+            if (hasPendingAlert) {
               Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(top = 2.dp)
               ) {
                 Icon(
-                  imageVector = Icons.Outlined.Place,
-                  contentDescription = null,
-                  tint = ZawitcoOrange,
+                  imageVector = Icons.Default.NotificationsActive,
+                  contentDescription = "Active Notifications",
+                  tint = Color(0xFFEA580C),
                   modifier = Modifier.size(13.dp)
                 )
                 Spacer(modifier = Modifier.width(3.dp))
                 Text(
-                  text = distanceStr,
-                  fontSize = 12.sp,
+                  text = listOfNotNull(
+                    if (pendingRequirementsCount > 0) "$pendingRequirementsCount req" else null,
+                    if (pendingReportsCount > 0) "$pendingReportsCount report" else null
+                  ).joinToString(" • "),
+                  fontSize = 11.sp,
                   fontWeight = FontWeight.Bold,
-                  color = ZawitcoOrange
+                  color = Color(0xFFEA580C)
                 )
               }
             }
@@ -232,18 +233,85 @@ fun AccommodationCard(
         }
       }
 
-      // Optional Building Image preview thumbnail
-      if (!accommodation.buildingImageUri.isNullOrBlank()) {
-        Spacer(modifier = Modifier.height(12.dp))
-        AsyncImage(
-          model = accommodation.buildingImageUri,
-          contentDescription = "Building photo for ${accommodation.areaName}",
-          contentScale = ContentScale.Crop,
+      // ==========================================
+      // 2 PICTURES PREVIEW (1. Billing Picture, 2. Door Picture)
+      // ==========================================
+      Spacer(modifier = Modifier.height(12.dp))
+      Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        // Billing Picture preview
+        Box(
           modifier = Modifier
-            .fillMaxWidth()
-            .height(130.dp)
-            .clip(RoundedCornerShape(12.dp))
-        )
+            .weight(1f)
+            .height(100.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFFFFF7ED))
+            .border(1.dp, Slate200, RoundedCornerShape(10.dp)),
+          contentAlignment = Alignment.Center
+        ) {
+          if (!billingImg.isNullOrBlank()) {
+            AsyncImage(
+              model = billingImg,
+              contentDescription = "Billing Photo",
+              contentScale = ContentScale.Crop,
+              modifier = Modifier.fillMaxWidth()
+            )
+          } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Icon(
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                tint = ZawitcoOrange,
+                modifier = Modifier.size(22.dp)
+              )
+              Spacer(modifier = Modifier.height(2.dp))
+              Text(
+                text = "1. Billing",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = ZawitcoOrange
+              )
+            }
+          }
+        }
+
+        // Door Picture preview
+        Box(
+          modifier = Modifier
+            .weight(1f)
+            .height(100.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(ZawitcoLightBlue)
+            .border(1.dp, Slate200, RoundedCornerShape(10.dp)),
+          contentAlignment = Alignment.Center
+        ) {
+          if (!doorImg.isNullOrBlank()) {
+            AsyncImage(
+              model = doorImg,
+              contentDescription = "Door Photo",
+              contentScale = ContentScale.Crop,
+              modifier = Modifier.fillMaxWidth()
+            )
+          } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+              Icon(
+                imageVector = Icons.Default.MeetingRoom,
+                contentDescription = null,
+                tint = ZawitcoBlue,
+                modifier = Modifier.size(22.dp)
+              )
+              Spacer(modifier = Modifier.height(2.dp))
+              Text(
+                text = "2. Door",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = ZawitcoBlue
+              )
+            }
+          }
+        }
       }
 
       Spacer(modifier = Modifier.height(10.dp))
@@ -251,12 +319,12 @@ fun AccommodationCard(
       // Villa Info
       Text(
         text = if (accommodation.villaNumber.isNotBlank()) "Villa: #${accommodation.villaNumber}" else "Villa: N/A",
-        fontSize = 15.sp,
+        fontSize = 14.sp,
         fontWeight = FontWeight.SemiBold,
         color = Slate600
       )
 
-      Spacer(modifier = Modifier.height(10.dp))
+      Spacer(modifier = Modifier.height(8.dp))
 
       // Floor & Room info badges
       Row(
@@ -264,19 +332,19 @@ fun AccommodationCard(
           .fillMaxWidth()
           .clip(RoundedCornerShape(10.dp))
           .background(Slate100)
-          .padding(horizontal = 12.dp, vertical = 8.dp),
+          .padding(horizontal = 10.dp, vertical = 7.dp),
         horizontalArrangement = Arrangement.SpaceBetween
       ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
           Text(
             text = "Floor: ",
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate700
           )
           Text(
             text = accommodation.floorNumber.ifBlank { "N/A" },
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             color = Slate600
           )
         }
@@ -286,18 +354,18 @@ fun AccommodationCard(
             imageVector = Icons.Outlined.MeetingRoom,
             contentDescription = null,
             tint = Slate500,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(15.dp)
           )
-          Spacer(modifier = Modifier.width(4.dp))
+          Spacer(modifier = Modifier.width(3.dp))
           Text(
             text = "Room: ",
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             color = Slate700
           )
           Text(
             text = accommodation.roomNumber.ifBlank { "N/A" },
-            fontSize = 13.sp,
+            fontSize = 12.sp,
             color = Slate600
           )
         }
@@ -314,15 +382,15 @@ fun AccommodationCard(
             imageVector = Icons.Outlined.Phone,
             contentDescription = null,
             tint = Slate500,
-            modifier = Modifier.size(14.dp)
+            modifier = Modifier.size(13.dp)
           )
-          Spacer(modifier = Modifier.width(6.dp))
+          Spacer(modifier = Modifier.width(4.dp))
           Text(
             text = listOfNotNull(
               accommodation.workerPhone.takeIf { it.isNotBlank() }?.let { "Worker: $it" },
               accommodation.ownerPhone.takeIf { it.isNotBlank() }?.let { "Owner: $it" }
             ).joinToString("  •  "),
-            fontSize = 12.sp,
+            fontSize = 11.sp,
             color = Slate500,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -330,7 +398,7 @@ fun AccommodationCard(
         }
       }
 
-      Spacer(modifier = Modifier.height(14.dp))
+      Spacer(modifier = Modifier.height(12.dp))
 
       // "View Details" button
       Box(

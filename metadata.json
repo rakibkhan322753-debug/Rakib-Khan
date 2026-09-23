@@ -1,7 +1,6 @@
 {
   "name": "Zawitco Accommodation",
-  "description": "Zawitco company housing and accommodation manager with admin access control, GPS proximity navigation, WhatsApp group integration, and official branding.",
+  "description": "Zawitco company housing & staff accommodation manager with two-tier login security, dual-photo records (billing and door), housing requirements management, and maintenance issue reporting.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
-

@@ -6,9 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.model.Accommodation
-import com.example.data.remote.GeminiMapsService
+import com.example.data.model.AccommodationReport
+import com.example.data.model.AccommodationRequirement
 import com.example.data.repository.AccommodationRepository
-import com.example.util.GpsLocationHelper
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -16,77 +16,114 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
 
-sealed interface GroundingUiState {
-  object Idle : GroundingUiState
-  object Loading : GroundingUiState
-  data class Success(val content: String, val queryType: String) : GroundingUiState
-  data class Error(val message: String) : GroundingUiState
+enum class UserRole {
+  LOGGED_OUT,
+  VIEWER,
+  ADMIN
+}
+
+sealed interface LoginResult {
+  data class Success(val role: UserRole) : LoginResult
+  data class Error(val message: String) : LoginResult
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AccommodationViewModel(
-  private val repository: AccommodationRepository,
-  private val mapsService: GeminiMapsService = GeminiMapsService()
+  private val repository: AccommodationRepository
 ) : ViewModel() {
 
-  // Admin Access Control: False = Viewer mode (read-only), True = Admin mode (full access)
-  private val _isAdmin = MutableStateFlow(false)
-  val isAdmin: StateFlow<Boolean> = _isAdmin.asStateFlow()
+  // Current session role. Default is LOGGED_OUT so app launches with Login interface
+  private val _currentUserRole = MutableStateFlow<UserRole>(UserRole.LOGGED_OUT)
+  val currentUserRole: StateFlow<UserRole> = _currentUserRole.asStateFlow()
 
-  private val _adminPin = MutableStateFlow("1234")
+  val isAdmin: StateFlow<Boolean> = _currentUserRole
+    .map { it == UserRole.ADMIN }
+    .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+  val isViewer: StateFlow<Boolean> = _currentUserRole
+    .map { it == UserRole.VIEWER }
+    .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+  // Passwords:
+  // 1. Admin (322753)
+  // 2. User (Zawitco)
+  private val _adminPin = MutableStateFlow("322753")
   val adminPin: StateFlow<String> = _adminPin.asStateFlow()
 
+  val userPassword: String = "Zawitco"
+
+  // Quick dialogs state
   private val _showAdminDialog = MutableStateFlow(false)
   val showAdminDialog: StateFlow<Boolean> = _showAdminDialog.asStateFlow()
-
-  // WhatsApp Community Group settings
-  private val _globalWhatsAppUrl = MutableStateFlow("https://chat.whatsapp.com/ZawitcoAccommodationCommunity")
-  val globalWhatsAppUrl: StateFlow<String> = _globalWhatsAppUrl.asStateFlow()
 
   private val _showWhatsAppDialog = MutableStateFlow(false)
   val showWhatsAppDialog: StateFlow<Boolean> = _showWhatsAppDialog.asStateFlow()
 
-  // Live GPS tracking & sorting
-  private val _userGpsCoordinates = MutableStateFlow<Pair<Double, Double>?>(null)
-  val userGpsCoordinates: StateFlow<Pair<Double, Double>?> = _userGpsCoordinates.asStateFlow()
+  // Requirements dialog state
+  private val _selectedAccommodationForRequirements = MutableStateFlow<Accommodation?>(null)
+  val selectedAccommodationForRequirements: StateFlow<Accommodation?> =
+    _selectedAccommodationForRequirements.asStateFlow()
 
-  private val _isGpsSortActive = MutableStateFlow(false)
-  val isGpsSortActive: StateFlow<Boolean> = _isGpsSortActive.asStateFlow()
+  // Reports dialog state
+  private val _selectedAccommodationForReports = MutableStateFlow<Accommodation?>(null)
+  val selectedAccommodationForReports: StateFlow<Accommodation?> =
+    _selectedAccommodationForReports.asStateFlow()
 
-  private val _isGpsLocating = MutableStateFlow(false)
-  val isGpsLocating: StateFlow<Boolean> = _isGpsLocating.asStateFlow()
+  // Global WhatsApp Group URL
+  private val _globalWhatsAppUrl = MutableStateFlow("https://chat.whatsapp.com/ZawitcoStaffHousing")
+  val globalWhatsAppUrl: StateFlow<String> = _globalWhatsAppUrl.asStateFlow()
 
+  // Search filter query
   private val _searchQuery = MutableStateFlow("")
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-  val accommodations: StateFlow<List<Accommodation>> = combine(
-    _searchQuery.flatMapLatest { repository.searchAccommodations(it) },
-    _userGpsCoordinates,
-    _isGpsSortActive
-  ) { list, userGps, sortActive ->
-    if (sortActive && userGps != null) {
-      list.sortedBy { item ->
-        if (item.latitude != null && item.longitude != null) {
-          GpsLocationHelper.calculateDistanceKm(userGps.first, userGps.second, item.latitude, item.longitude)
-        } else {
-          Double.MAX_VALUE
-        }
-      }
-    } else {
-      list
-    }
-  }.stateIn(
-    scope = viewModelScope,
-    started = SharingStarted.WhileSubscribed(5000),
-    initialValue = emptyList()
-  )
+  // Accommodations list
+  val accommodations: StateFlow<List<Accommodation>> = _searchQuery
+    .flatMapLatest { query -> repository.searchAccommodations(query) }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+  // All Requirements and Reports for active app notifications
+  val allRequirements: StateFlow<List<AccommodationRequirement>> = repository.getAllRequirements()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  val allReports: StateFlow<List<AccommodationReport>> = repository.getAllReports()
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  // Pending counts for Notification Alert
+  val pendingRequirementsCount: StateFlow<Int> = allRequirements
+    .map { list -> list.count { it.status != "Fulfilled" } }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+  val pendingReportsCount: StateFlow<Int> = allReports
+    .map { list -> list.count { it.status != "Resolved" } }
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+  // Requirements for currently open requirements dialog
+  val currentAccommodationRequirements: StateFlow<List<AccommodationRequirement>> =
+    _selectedAccommodationForRequirements
+      .flatMapLatest { acc ->
+        if (acc == null) MutableStateFlow(emptyList())
+        else repository.getRequirementsForAccommodation(acc.id)
+      }
+      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  // Reports for currently open reports dialog
+  val currentAccommodationReports: StateFlow<List<AccommodationReport>> =
+    _selectedAccommodationForReports
+      .flatMapLatest { acc ->
+        if (acc == null) MutableStateFlow(emptyList())
+        else repository.getReportsForAccommodation(acc.id)
+      }
+      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  // Dialog & Details sheet states
   private val _selectedAccommodation = MutableStateFlow<Accommodation?>(null)
   val selectedAccommodation: StateFlow<Accommodation?> = _selectedAccommodation.asStateFlow()
 
@@ -96,9 +133,6 @@ class AccommodationViewModel(
   private val _editingAccommodation = MutableStateFlow<Accommodation?>(null)
   val editingAccommodation: StateFlow<Accommodation?> = _editingAccommodation.asStateFlow()
 
-  private val _groundingState = MutableStateFlow<GroundingUiState>(GroundingUiState.Idle)
-  val groundingState: StateFlow<GroundingUiState> = _groundingState.asStateFlow()
-
   init {
     viewModelScope.launch {
       repository.ensureDefaultDataIfEmpty()
@@ -107,6 +141,32 @@ class AccommodationViewModel(
 
   fun onSearchQueryChange(query: String) {
     _searchQuery.value = query
+  }
+
+  // Main Authentication functions
+  fun login(enteredPassword: String): LoginResult {
+    val trimmed = enteredPassword.trim()
+    if (trimmed.isEmpty()) {
+      return LoginResult.Error("Please enter password to sign in.")
+    }
+
+    // Check Admin Password (default 322753)
+    if (trimmed == _adminPin.value.trim()) {
+      _currentUserRole.value = UserRole.ADMIN
+      return LoginResult.Success(UserRole.ADMIN)
+    }
+
+    // Check User/Viewer Password (Zawitco, case-insensitive)
+    if (trimmed.equals(userPassword, ignoreCase = true)) {
+      _currentUserRole.value = UserRole.VIEWER
+      return LoginResult.Success(UserRole.VIEWER)
+    }
+
+    return LoginResult.Error("Invalid password. Use '322753' for Admin or 'Zawitco' for User.")
+  }
+
+  fun logout() {
+    _currentUserRole.value = UserRole.LOGGED_OUT
   }
 
   // Admin access functions
@@ -120,7 +180,8 @@ class AccommodationViewModel(
 
   fun loginAsAdmin(enteredPin: String): Boolean {
     return if (enteredPin.trim() == _adminPin.value.trim()) {
-      _isAdmin.value = true
+      _currentUserRole.value = UserRole.ADMIN
+      _showAdminDialog.value = false
       true
     } else {
       false
@@ -128,7 +189,7 @@ class AccommodationViewModel(
   }
 
   fun logoutAdmin() {
-    _isAdmin.value = false
+    _currentUserRole.value = UserRole.VIEWER
   }
 
   fun updateAdminPin(newPin: String) {
@@ -152,23 +213,101 @@ class AccommodationViewModel(
     }
   }
 
-  // GPS Location functions
-  fun setUserGpsCoordinates(latitude: Double, longitude: Double) {
-    _userGpsCoordinates.value = Pair(latitude, longitude)
-    _isGpsLocating.value = false
+  // Requirements dialog functions
+  fun openRequirementsDialog(acc: Accommodation) {
+    _selectedAccommodationForRequirements.value = acc
   }
 
-  fun setGpsLocating(locating: Boolean) {
-    _isGpsLocating.value = locating
+  fun closeRequirementsDialog() {
+    _selectedAccommodationForRequirements.value = null
   }
 
-  fun toggleGpsSort() {
-    _isGpsSortActive.value = !_isGpsSortActive.value
+  fun addRequirement(
+    accommodationId: Long,
+    itemName: String,
+    quantity: Int,
+    urgency: String,
+    requestedBy: String,
+    notes: String
+  ) {
+    viewModelScope.launch {
+      repository.insertRequirement(
+        AccommodationRequirement(
+          accommodationId = accommodationId,
+          itemName = itemName,
+          quantity = quantity,
+          urgency = urgency,
+          status = "Pending",
+          requestedBy = requestedBy,
+          notes = notes
+        )
+      )
+    }
   }
 
+  fun updateRequirementStatus(req: AccommodationRequirement, newStatus: String) {
+    viewModelScope.launch {
+      repository.updateRequirement(req.copy(status = newStatus))
+    }
+  }
+
+  fun deleteRequirement(req: AccommodationRequirement) {
+    if (!isAdmin.value) return
+    viewModelScope.launch {
+      repository.deleteRequirement(req)
+    }
+  }
+
+  // Report issue dialog functions
+  fun openReportsDialog(acc: Accommodation) {
+    _selectedAccommodationForReports.value = acc
+  }
+
+  fun closeReportsDialog() {
+    _selectedAccommodationForReports.value = null
+  }
+
+  fun addReport(
+    accommodationId: Long,
+    category: String,
+    title: String,
+    description: String,
+    severity: String,
+    reportedBy: String,
+    reporterPhone: String
+  ) {
+    viewModelScope.launch {
+      repository.insertReport(
+        AccommodationReport(
+          accommodationId = accommodationId,
+          issueCategory = category,
+          title = title,
+          description = description,
+          severity = severity,
+          status = "Open",
+          reportedBy = reportedBy,
+          reporterPhone = reporterPhone
+        )
+      )
+    }
+  }
+
+  fun updateReportStatus(report: AccommodationReport, newStatus: String) {
+    viewModelScope.launch {
+      repository.updateReport(report.copy(status = newStatus))
+    }
+  }
+
+  fun deleteReport(report: AccommodationReport) {
+    if (!isAdmin.value) return
+    viewModelScope.launch {
+      repository.deleteReport(report)
+    }
+  }
+
+  // Accommodation CRUD
   fun openAddDialog() {
-    if (!_isAdmin.value) {
-      // Prompt for Admin login if attempting to add data without permissions
+    if (!isAdmin.value) {
       _showAdminDialog.value = true
       return
     }
@@ -177,7 +316,7 @@ class AccommodationViewModel(
   }
 
   fun openEditDialog(item: Accommodation) {
-    if (!_isAdmin.value) {
+    if (!isAdmin.value) {
       _showAdminDialog.value = true
       return
     }
@@ -192,12 +331,10 @@ class AccommodationViewModel(
 
   fun selectAccommodation(item: Accommodation) {
     _selectedAccommodation.value = item
-    _groundingState.value = GroundingUiState.Idle
   }
 
   fun clearSelectedAccommodation() {
     _selectedAccommodation.value = null
-    _groundingState.value = GroundingUiState.Idle
   }
 
   fun saveAccommodation(
@@ -212,22 +349,17 @@ class AccommodationViewModel(
     latitude: Double?,
     longitude: Double?,
     buildingImageUri: String?,
+    billingPictureUri: String?,
+    doorPictureUri: String?,
     notes: String,
     whatsappGroupUrl: String = ""
   ) {
-    // Only admins are permitted to input and modify records
-    if (!_isAdmin.value) {
+    if (!isAdmin.value) {
       _showAdminDialog.value = true
       return
     }
 
     viewModelScope.launch {
-      val resolvedMapsUrl = when {
-        googleMapsUrl.isNotBlank() -> googleMapsUrl.trim()
-        latitude != null && longitude != null -> "https://maps.google.com/?q=$latitude,$longitude"
-        else -> ""
-      }
-
       val item = Accommodation(
         id = id,
         areaName = areaName.trim(),
@@ -236,10 +368,12 @@ class AccommodationViewModel(
         roomNumber = roomNumber.trim(),
         workerPhone = workerPhone.trim(),
         ownerPhone = ownerPhone.trim(),
-        googleMapsUrl = resolvedMapsUrl,
+        googleMapsUrl = googleMapsUrl.trim(),
         latitude = latitude,
         longitude = longitude,
         buildingImageUri = buildingImageUri,
+        billingPictureUri = billingPictureUri,
+        doorPictureUri = doorPictureUri,
         notes = notes.trim(),
         whatsappGroupUrl = whatsappGroupUrl.trim()
       )
@@ -257,7 +391,7 @@ class AccommodationViewModel(
   }
 
   fun deleteAccommodation(item: Accommodation) {
-    if (!_isAdmin.value) {
+    if (!isAdmin.value) {
       _showAdminDialog.value = true
       return
     }
@@ -269,35 +403,6 @@ class AccommodationViewModel(
     }
   }
 
-  fun fetchMapsGrounding(
-    accommodation: Accommodation,
-    queryType: String = "general",
-    customPrompt: String? = null
-  ) {
-    viewModelScope.launch {
-      _groundingState.value = GroundingUiState.Loading
-      val result = mapsService.getGroundedMapsInsights(
-        areaName = accommodation.areaName,
-        villaNumber = accommodation.villaNumber,
-        latitude = accommodation.latitude,
-        longitude = accommodation.longitude,
-        queryType = queryType,
-        customPrompt = customPrompt
-      )
-
-      result.onSuccess { content ->
-        _groundingState.value = GroundingUiState.Success(content, queryType)
-      }.onFailure { ex ->
-        _groundingState.value = GroundingUiState.Error(
-          ex.localizedMessage ?: "Failed to retrieve Google Maps information."
-        )
-      }
-    }
-  }
-
-  /**
-   * Helper to persist chosen image into app internal storage
-   */
   fun saveImageUriToInternalStorage(context: Context, sourceUri: Uri): String? {
     return try {
       val imagesDir = File(context.filesDir, "accommodation_images").apply {

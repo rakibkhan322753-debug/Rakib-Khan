@@ -17,6 +17,8 @@ data class Accommodation(
   val latitude: Double? = null,
   val longitude: Double? = null,
   val buildingImageUri: String? = null,
+  val billingPictureUri: String? = null, // 1. Billing Picture
+  val doorPictureUri: String? = null,    // 2. Door Picture
   val notes: String = "",
   val whatsappGroupUrl: String = "",
   val createdAt: Long = System.currentTimeMillis()

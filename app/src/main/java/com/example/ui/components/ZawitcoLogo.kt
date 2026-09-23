@@ -50,7 +50,7 @@ fun ZawitcoCompanyLogo(
       contentAlignment = Alignment.Center
     ) {
       Image(
-        painter = painterResource(id = R.drawable.zawitco_logo_header),
+        painter = painterResource(id = R.drawable.zawitco_company_logo_1788754962037),
         contentDescription = "Zawitco Company Logo",
         contentScale = ContentScale.Fit,
         modifier = Modifier.height(height - 4.dp)
@@ -85,5 +85,85 @@ fun ZawitcoCompanyLogo(
         )
       }
     }
+  }
+}
+
+/**
+ * Large Corporate Brand Hero composable for the Login Interface
+ */
+@Composable
+fun ZawitcoHeroLogo(
+  modifier: Modifier = Modifier
+) {
+  Column(
+    modifier = modifier,
+    horizontalAlignment = Alignment.CenterHorizontally
+  ) {
+    // Card containing the uploaded official company logo
+    Box(
+      modifier = Modifier
+        .clip(RoundedCornerShape(18.dp))
+        .background(Color.White)
+        .border(1.5.dp, Slate200, RoundedCornerShape(18.dp))
+        .padding(horizontal = 20.dp, vertical = 12.dp),
+      contentAlignment = Alignment.Center
+    ) {
+      Image(
+        painter = painterResource(id = R.drawable.zawitco_company_logo_1788754962037),
+        contentDescription = "Zawitco Corporate Logo",
+        contentScale = ContentScale.Fit,
+        modifier = Modifier
+          .height(72.dp)
+          .width(220.dp)
+      )
+    }
+
+    Spacer(modifier = Modifier.height(14.dp))
+
+    // Bilingual Header Titles
+    Row(
+      verticalAlignment = Alignment.CenterVertically
+    ) {
+      Text(
+        text = "زاوية كو",
+        fontSize = 22.sp,
+        fontWeight = FontWeight.Black,
+        color = ZawitcoBlue
+      )
+      Spacer(modifier = Modifier.width(8.dp))
+      Text(
+        text = "•",
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
+        color = ZawitcoOrange
+      )
+      Spacer(modifier = Modifier.width(8.dp))
+      Text(
+        text = "ZAWITCO",
+        fontSize = 22.sp,
+        fontWeight = FontWeight.Black,
+        color = ZawitcoBlue,
+        letterSpacing = 1.sp
+      )
+    }
+
+    Spacer(modifier = Modifier.height(3.dp))
+
+    Text(
+      text = "ACCOMMODATION & HOUSING PORTAL",
+      fontSize = 12.sp,
+      fontWeight = FontWeight.ExtraBold,
+      color = ZawitcoOrange,
+      letterSpacing = 1.5.sp
+    )
+
+    Spacer(modifier = Modifier.height(2.dp))
+
+    Text(
+      text = "بوابة إدارة سكن الموظفين والعقارات",
+      fontSize = 11.sp,
+      fontWeight = FontWeight.Medium,
+      color = Color(0xFF64748B)
+    )
   }
 }

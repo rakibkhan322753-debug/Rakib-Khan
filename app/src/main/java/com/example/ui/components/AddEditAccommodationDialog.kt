@@ -1,8 +1,6 @@
 package com.example.ui.components
 
-import android.Manifest
 import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,7 +8,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,27 +24,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddAPhoto
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material.icons.outlined.Map
-import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -69,8 +58,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.data.model.Accommodation
-import com.example.ui.theme.DarkGreen
-import com.example.ui.theme.LightGreen
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
@@ -79,23 +66,6 @@ import com.example.ui.theme.Slate700
 import com.example.ui.theme.ZawitcoBlue
 import com.example.ui.theme.ZawitcoLightBlue
 import com.example.ui.theme.ZawitcoOrange
-import com.example.util.GpsLocationHelper
-
-data class LocationPreset(
-  val name: String,
-  val lat: Double,
-  val lng: Double
-)
-
-val commonSaudiPresets = listOf(
-  LocationPreset("Al Olaya, Riyadh", 24.7136, 46.6753),
-  LocationPreset("Al Malaz, Riyadh", 24.6657, 46.7369),
-  LocationPreset("Al Sulaimaniya", 24.6984, 46.7028),
-  LocationPreset("Al Yasmin, Riyadh", 24.8211, 46.6342),
-  LocationPreset("Al Narjis, Riyadh", 24.8450, 46.6700),
-  LocationPreset("Al Khobar Corniche", 26.2842, 50.2084),
-  LocationPreset("Al Hamra, Jeddah", 21.5169, 39.1558)
-)
 
 @Composable
 fun AddEditAccommodationDialog(
@@ -113,6 +83,8 @@ fun AddEditAccommodationDialog(
     latitude: Double?,
     longitude: Double?,
     buildingImageUri: String?,
+    billingPictureUri: String?,
+    doorPictureUri: String?,
     notes: String,
     whatsappGroupUrl: String
   ) -> Unit,
@@ -128,57 +100,31 @@ fun AddEditAccommodationDialog(
   var workerPhone by remember { mutableStateOf(initialItem?.workerPhone ?: "") }
   var ownerPhone by remember { mutableStateOf(initialItem?.ownerPhone ?: "") }
   var googleMapsUrl by remember { mutableStateOf(initialItem?.googleMapsUrl ?: "") }
-  var latitudeStr by remember { mutableStateOf(initialItem?.latitude?.toString() ?: "") }
-  var longitudeStr by remember { mutableStateOf(initialItem?.longitude?.toString() ?: "") }
-  var imageUri by remember { mutableStateOf(initialItem?.buildingImageUri) }
+  var billingPictureUri by remember {
+    mutableStateOf(initialItem?.billingPictureUri ?: initialItem?.buildingImageUri)
+  }
+  var doorPictureUri by remember { mutableStateOf(initialItem?.doorPictureUri) }
   var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
   var whatsappGroupUrl by remember { mutableStateOf(initialItem?.whatsappGroupUrl ?: "") }
 
   var areaNameError by remember { mutableStateOf(false) }
-  var isGpsLoading by remember { mutableStateOf(false) }
-  var gpsStatusMessage by remember { mutableStateOf<String?>(null) }
 
-  fun fetchCurrentGpsLocation() {
-    isGpsLoading = true
-    gpsStatusMessage = "Detecting current coordinates..."
-    GpsLocationHelper.getCurrentCoordinates(
-      context = context,
-      onSuccess = { lat, lng ->
-        isGpsLoading = false
-        latitudeStr = lat.toString()
-        longitudeStr = lng.toString()
-        googleMapsUrl = "https://maps.google.com/?q=$lat,$lng"
-        gpsStatusMessage = "GPS coordinates locked: $lat, $lng"
-        Toast.makeText(context, "Current GPS location locked!", Toast.LENGTH_SHORT).show()
-      },
-      onError = { err ->
-        isGpsLoading = false
-        gpsStatusMessage = "GPS Error: $err"
-        Toast.makeText(context, err, Toast.LENGTH_LONG).show()
-      }
-    )
-  }
-
-  val locationPermissionLauncher = rememberLauncherForActivityResult(
-    contract = ActivityResultContracts.RequestMultiplePermissions()
-  ) { permissions ->
-    val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
-        permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
-    if (granted) {
-      fetchCurrentGpsLocation()
-    } else {
-      isGpsLoading = false
-      gpsStatusMessage = "Location permission denied."
-      Toast.makeText(context, "Location permission is required for GPS access.", Toast.LENGTH_SHORT).show()
-    }
-  }
-
-  val photoPickerLauncher = rememberLauncherForActivityResult(
+  // Activity Result Launchers for Billing Picture and Door Picture
+  val billingPhotoPickerLauncher = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.PickVisualMedia()
   ) { selectedUri: Uri? ->
     if (selectedUri != null) {
       val savedPath = onSaveImageToStorage(selectedUri)
-      imageUri = savedPath ?: selectedUri.toString()
+      billingPictureUri = savedPath ?: selectedUri.toString()
+    }
+  }
+
+  val doorPhotoPickerLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.PickVisualMedia()
+  ) { selectedUri: Uri? ->
+    if (selectedUri != null) {
+      val savedPath = onSaveImageToStorage(selectedUri)
+      doorPictureUri = savedPath ?: selectedUri.toString()
     }
   }
 
@@ -216,7 +162,7 @@ fun AddEditAccommodationDialog(
               color = ZawitcoBlue
             )
             Text(
-              text = "Admin property management",
+              text = "Zawitco property & photos record",
               fontSize = 12.sp,
               color = Slate600
             )
@@ -236,79 +182,210 @@ fun AddEditAccommodationDialog(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Building Image Upload Section
+        // ==========================================
+        // 2 REQUIRED PICTURES (1. Billing Picture, 2. Door Picture)
+        // ==========================================
         Text(
-          text = "Building Image",
+          text = "Required Accommodation Photos (2 Pictures)",
           fontSize = 14.sp,
-          fontWeight = FontWeight.SemiBold,
-          color = Slate700
+          fontWeight = FontWeight.Bold,
+          color = ZawitcoBlue
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+          text = "Every accommodation record requires 1. Billing Picture and 2. Door Picture",
+          fontSize = 12.sp,
+          color = Slate600
+        )
 
-        if (!imageUri.isNullOrBlank()) {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(160.dp)
-              .clip(RoundedCornerShape(12.dp))
-          ) {
-            AsyncImage(
-              model = imageUri,
-              contentDescription = "Selected building image",
-              contentScale = ContentScale.Crop,
-              modifier = Modifier.fillMaxWidth()
-            )
-            IconButton(
-              onClick = { imageUri = null },
-              modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                .size(36.dp)
-            ) {
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          // 1. BILLING PICTURE UPLOAD CARD
+          Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
               Icon(
-                imageVector = Icons.Outlined.Delete,
-                contentDescription = "Remove image",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
+                imageVector = Icons.Default.Description,
+                contentDescription = null,
+                tint = ZawitcoOrange,
+                modifier = Modifier.size(16.dp)
+              )
+              Spacer(modifier = Modifier.width(4.dp))
+              Text(
+                text = "1. Billing Picture",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Slate700
               )
             }
-          }
-        } else {
-          Box(
-            modifier = Modifier
-              .fillMaxWidth()
-              .height(110.dp)
-              .clip(RoundedCornerShape(12.dp))
-              .border(1.dp, Slate200, RoundedCornerShape(12.dp))
-              .background(Slate100)
-              .clickable {
-                photoPickerLauncher.launch(
-                  PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            Spacer(modifier = Modifier.height(6.dp))
+
+            if (!billingPictureUri.isNullOrBlank()) {
+              Box(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(130.dp)
+                  .clip(RoundedCornerShape(12.dp))
+                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+              ) {
+                AsyncImage(
+                  model = billingPictureUri,
+                  contentDescription = "Billing Photo",
+                  contentScale = ContentScale.Crop,
+                  modifier = Modifier.fillMaxWidth()
                 )
+                IconButton(
+                  onClick = { billingPictureUri = null },
+                  modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    .size(28.dp)
+                    .testTag("remove_billing_picture_button")
+                ) {
+                  Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Remove billing picture",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                  )
+                }
               }
-              .testTag("pick_building_image_button"),
-            contentAlignment = Alignment.Center
-          ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            } else {
+              Box(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(130.dp)
+                  .clip(RoundedCornerShape(12.dp))
+                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+                  .background(Slate100)
+                  .clickable {
+                    billingPhotoPickerLauncher.launch(
+                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                  }
+                  .testTag("pick_billing_picture_button"),
+                contentAlignment = Alignment.Center
+              ) {
+                Column(
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  modifier = Modifier.padding(6.dp)
+                ) {
+                  Icon(
+                    imageVector = Icons.Outlined.AddAPhoto,
+                    contentDescription = null,
+                    tint = ZawitcoOrange,
+                    modifier = Modifier.size(26.dp)
+                  )
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = "Upload Billing",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ZawitcoOrange
+                  )
+                  Text(
+                    text = "Invoice / Bill photo",
+                    fontSize = 10.sp,
+                    color = Slate400
+                  )
+                }
+              }
+            }
+          }
+
+          // 2. DOOR PICTURE UPLOAD CARD
+          Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
               Icon(
-                imageVector = Icons.Outlined.AddAPhoto,
+                imageVector = Icons.Default.MeetingRoom,
                 contentDescription = null,
                 tint = ZawitcoBlue,
-                modifier = Modifier.size(30.dp)
+                modifier = Modifier.size(16.dp)
               )
-              Spacer(modifier = Modifier.height(6.dp))
+              Spacer(modifier = Modifier.width(4.dp))
               Text(
-                text = "Select Building Photo",
+                text = "2. Door Picture",
                 fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = ZawitcoBlue
+                fontWeight = FontWeight.Bold,
+                color = Slate700
               )
-              Text(
-                text = "Tap to choose photo from gallery or camera",
-                fontSize = 11.sp,
-                color = Slate400
-              )
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+
+            if (!doorPictureUri.isNullOrBlank()) {
+              Box(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(130.dp)
+                  .clip(RoundedCornerShape(12.dp))
+                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+              ) {
+                AsyncImage(
+                  model = doorPictureUri,
+                  contentDescription = "Door Photo",
+                  contentScale = ContentScale.Crop,
+                  modifier = Modifier.fillMaxWidth()
+                )
+                IconButton(
+                  onClick = { doorPictureUri = null },
+                  modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                    .size(28.dp)
+                    .testTag("remove_door_picture_button")
+                ) {
+                  Icon(
+                    imageVector = Icons.Outlined.Delete,
+                    contentDescription = "Remove door picture",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                  )
+                }
+              }
+            } else {
+              Box(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .height(130.dp)
+                  .clip(RoundedCornerShape(12.dp))
+                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+                  .background(Slate100)
+                  .clickable {
+                    doorPhotoPickerLauncher.launch(
+                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                  }
+                  .testTag("pick_door_picture_button"),
+                contentAlignment = Alignment.Center
+              ) {
+                Column(
+                  horizontalAlignment = Alignment.CenterHorizontally,
+                  modifier = Modifier.padding(6.dp)
+                ) {
+                  Icon(
+                    imageVector = Icons.Outlined.PhotoCamera,
+                    contentDescription = null,
+                    tint = ZawitcoBlue,
+                    modifier = Modifier.size(26.dp)
+                  )
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = "Upload Door",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = ZawitcoBlue
+                  )
+                  Text(
+                    text = "Front entrance / Door",
+                    fontSize = 10.sp,
+                    color = Slate400
+                  )
+                }
+              }
             }
           }
         }
@@ -327,6 +404,7 @@ fun AddEditAccommodationDialog(
               if (it.isNotBlank()) areaNameError = false
             },
             label = { Text("Area Name *") },
+            placeholder = { Text("e.g. Al Olaya District") },
             isError = areaNameError,
             supportingText = if (areaNameError) {
               { Text("Area Name is required") }
@@ -360,7 +438,7 @@ fun AddEditAccommodationDialog(
             value = floorNumber,
             onValueChange = { floorNumber = it },
             label = { Text("Floor Number") },
-            placeholder = { Text("e.g. 1st Floor") },
+            placeholder = { Text("e.g. 2nd Floor") },
             singleLine = true,
             modifier = Modifier
               .weight(1f)
@@ -371,7 +449,7 @@ fun AddEditAccommodationDialog(
             value = roomNumber,
             onValueChange = { roomNumber = it },
             label = { Text("Room Number(s)") },
-            placeholder = { Text("e.g. 101, 102") },
+            placeholder = { Text("e.g. 201, 202") },
             singleLine = true,
             modifier = Modifier
               .weight(1.2f)
@@ -415,16 +493,8 @@ fun AddEditAccommodationDialog(
         OutlinedTextField(
           value = whatsappGroupUrl,
           onValueChange = { whatsappGroupUrl = it },
-          label = { Text("WhatsApp Group / Chat Link") },
+          label = { Text("WhatsApp Group / Contact Link") },
           placeholder = { Text("https://chat.whatsapp.com/... or https://wa.me/...") },
-          leadingIcon = {
-            Icon(
-              imageVector = Icons.Default.Group,
-              contentDescription = null,
-              tint = Color(0xFF25D366),
-              modifier = Modifier.size(20.dp)
-            )
-          },
           singleLine = true,
           modifier = Modifier
             .fillMaxWidth()
@@ -433,11 +503,11 @@ fun AddEditAccommodationDialog(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Google Maps URL
+        // Google Maps URL (Direct link if available)
         OutlinedTextField(
           value = googleMapsUrl,
           onValueChange = { googleMapsUrl = it },
-          label = { Text("Google Maps URL (Paste Link)") },
+          label = { Text("Google Maps URL (Optional Link)") },
           placeholder = { Text("https://maps.google.com/...") },
           singleLine = true,
           modifier = Modifier
@@ -445,157 +515,13 @@ fun AddEditAccommodationDialog(
             .testTag("input_maps_url")
         )
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // GPS Access & Coordinates section
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.SpaceBetween,
-          verticalAlignment = Alignment.CenterVertically
-        ) {
-          Column {
-            Text(
-              text = "Coordinates & GPS Location",
-              fontSize = 14.sp,
-              fontWeight = FontWeight.SemiBold,
-              color = Slate700
-            )
-            Text(
-              text = "Use device GPS or select a preset area",
-              fontSize = 12.sp,
-              color = Slate600
-            )
-          }
-
-          // Live GPS acquisition button
-          Button(
-            onClick = {
-              if (GpsLocationHelper.hasLocationPermission(context)) {
-                fetchCurrentGpsLocation()
-              } else {
-                locationPermissionLauncher.launch(
-                  arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                  )
-                )
-              }
-            },
-            colors = ButtonDefaults.buttonColors(
-              containerColor = ZawitcoBlue,
-              contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(10.dp),
-            modifier = Modifier.testTag("use_current_gps_button")
-          ) {
-            if (isGpsLoading) {
-              CircularProgressIndicator(
-                color = Color.White,
-                strokeWidth = 2.dp,
-                modifier = Modifier.size(16.dp)
-              )
-            } else {
-              Icon(
-                imageVector = Icons.Default.MyLocation,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-              )
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Use GPS", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-          }
-        }
-
-        if (gpsStatusMessage != null) {
-          Spacer(modifier = Modifier.height(6.dp))
-          Text(
-            text = gpsStatusMessage ?: "",
-            fontSize = 12.sp,
-            color = if (gpsStatusMessage?.contains("Error", true) == true) MaterialTheme.colorScheme.error else DarkGreen,
-            fontWeight = FontWeight.Medium
-          )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Preset Chips
-        Row(
-          modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-          horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-          commonSaudiPresets.forEach { preset ->
-            val isSelected = areaName.contains(preset.name.split(",")[0].trim(), ignoreCase = true)
-            Surface(
-              onClick = {
-                if (areaName.isBlank()) {
-                  areaName = preset.name.split(",")[0].trim()
-                }
-                latitudeStr = preset.lat.toString()
-                longitudeStr = preset.lng.toString()
-                if (googleMapsUrl.isBlank()) {
-                  googleMapsUrl = "https://maps.google.com/?q=${preset.lat},${preset.lng}"
-                }
-              },
-              shape = RoundedCornerShape(20.dp),
-              color = if (isSelected) ZawitcoLightBlue else Slate100,
-              border = BorderStroke(1.dp, if (isSelected) ZawitcoBlue else Slate200)
-            ) {
-              Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically
-              ) {
-                Icon(
-                  imageVector = Icons.Outlined.LocationOn,
-                  contentDescription = null,
-                  tint = if (isSelected) ZawitcoBlue else Slate600,
-                  modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                  text = preset.name,
-                  fontSize = 12.sp,
-                  fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                  color = if (isSelected) ZawitcoBlue else Slate700
-                )
-              }
-            }
-          }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          OutlinedTextField(
-            value = latitudeStr,
-            onValueChange = { latitudeStr = it },
-            label = { Text("Latitude") },
-            placeholder = { Text("24.7136") },
-            singleLine = true,
-            modifier = Modifier.weight(1f)
-          )
-
-          OutlinedTextField(
-            value = longitudeStr,
-            onValueChange = { longitudeStr = it },
-            label = { Text("Longitude") },
-            placeholder = { Text("46.6753") },
-            singleLine = true,
-            modifier = Modifier.weight(1f)
-          )
-        }
-
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Notes
+        // Notes & Amenities
         OutlinedTextField(
           value = notes,
           onValueChange = { notes = it },
-          label = { Text("Additional Notes & Housing Amenities") },
+          label = { Text("Accommodation Notes & Amenities") },
           placeholder = { Text("e.g. WiFi included, 3 ACs, near supermarket...") },
           maxLines = 3,
           modifier = Modifier
@@ -613,9 +539,6 @@ fun AddEditAccommodationDialog(
               return@Button
             }
 
-            val lat = latitudeStr.toDoubleOrNull()
-            val lng = longitudeStr.toDoubleOrNull()
-
             onSave(
               initialItem?.id ?: 0L,
               areaName,
@@ -625,9 +548,11 @@ fun AddEditAccommodationDialog(
               workerPhone,
               ownerPhone,
               googleMapsUrl,
-              lat,
-              lng,
-              imageUri,
+              initialItem?.latitude,
+              initialItem?.longitude,
+              billingPictureUri ?: initialItem?.buildingImageUri,
+              billingPictureUri,
+              doorPictureUri,
               notes,
               whatsappGroupUrl
             )
