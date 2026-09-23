@@ -255,14 +255,12 @@ fun AdminLoginDialog(
               errorMessage = ""
             },
             label = { Text("Admin Security PIN / Password") },
-            placeholder = { Text("Enter 322753") },
+            placeholder = { Text("Enter admin PIN") },
             singleLine = true,
             isError = isError,
             supportingText = if (isError) {
               { Text(errorMessage, color = MaterialTheme.colorScheme.error) }
-            } else {
-              { Text("Default Admin Passkey: 322753", color = Slate500) }
-            },
+            } else null,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(
               keyboardType = KeyboardType.NumberPassword,
@@ -275,7 +273,7 @@ fun AdminLoginDialog(
                   onDismiss()
                 } else {
                   isError = true
-                  errorMessage = "Incorrect PIN. Passkey is 322753."
+                  errorMessage = "Incorrect PIN. Please try again."
                 }
               }
             ),
@@ -293,7 +291,7 @@ fun AdminLoginDialog(
                 onDismiss()
               } else {
                 isError = true
-                errorMessage = "Incorrect PIN. Passkey is 322753."
+                errorMessage = "Incorrect PIN. Please try again."
               }
             },
             colors = ButtonDefaults.buttonColors(containerColor = ZawitcoOrange),

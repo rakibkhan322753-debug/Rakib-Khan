@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Check
@@ -37,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,7 +88,8 @@ fun AddEditAccommodationDialog(
     billingPictureUri: String?,
     doorPictureUri: String?,
     notes: String,
-    whatsappGroupUrl: String
+    whatsappGroupUrl: String,
+    stationName: String
   ) -> Unit,
   onSaveImageToStorage: (Uri) -> String?,
   modifier: Modifier = Modifier
@@ -97,9 +100,12 @@ fun AddEditAccommodationDialog(
   var villaNumber by remember { mutableStateOf(initialItem?.villaNumber ?: "") }
   var floorNumber by remember { mutableStateOf(initialItem?.floorNumber ?: "") }
   var roomNumber by remember { mutableStateOf(initialItem?.roomNumber ?: "") }
+  var stationName by remember { mutableStateOf(initialItem?.stationName ?: "") }
   var workerPhone by remember { mutableStateOf(initialItem?.workerPhone ?: "") }
   var ownerPhone by remember { mutableStateOf(initialItem?.ownerPhone ?: "") }
   var googleMapsUrl by remember { mutableStateOf(initialItem?.googleMapsUrl ?: "") }
+  var latitudeStr by remember { mutableStateOf(initialItem?.latitude?.toString() ?: "") }
+  var longitudeStr by remember { mutableStateOf(initialItem?.longitude?.toString() ?: "") }
   var billingPictureUri by remember {
     mutableStateOf(initialItem?.billingPictureUri ?: initialItem?.buildingImageUri)
   }
@@ -128,6 +134,17 @@ fun AddEditAccommodationDialog(
     }
   }
 
+  val defaultTextFieldColors = OutlinedTextFieldDefaults.colors(
+    focusedTextColor = Color.Black,
+    unfocusedTextColor = Color.Black,
+    focusedBorderColor = ZawitcoBlue,
+    unfocusedBorderColor = Slate200,
+    focusedLabelColor = ZawitcoBlue,
+    unfocusedLabelColor = Color.Black,
+    focusedContainerColor = Color.White,
+    unfocusedContainerColor = Color.White
+  )
+
   Dialog(
     onDismissRequest = onDismiss,
     properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -137,7 +154,7 @@ fun AddEditAccommodationDialog(
         .fillMaxWidth(0.95f)
         .fillMaxHeight(0.92f)
         .clip(RoundedCornerShape(24.dp)),
-      color = MaterialTheme.colorScheme.surface,
+      color = Color.White,
       tonalElevation = 8.dp
     ) {
       Column(
@@ -159,12 +176,12 @@ fun AddEditAccommodationDialog(
               text = if (initialItem == null) "Add Accommodation" else "Edit Accommodation",
               fontSize = 19.sp,
               fontWeight = FontWeight.Bold,
-              color = ZawitcoBlue
+              color = Color.Black
             )
             Text(
               text = "Zawitco property & photos record",
               fontSize = 12.sp,
-              color = Slate600
+              color = Color.Black
             )
           }
 
@@ -175,7 +192,7 @@ fun AddEditAccommodationDialog(
             Icon(
               imageVector = Icons.Default.Close,
               contentDescription = "Close",
-              tint = Slate600
+              tint = Color.Black
             )
           }
         }
@@ -189,12 +206,12 @@ fun AddEditAccommodationDialog(
           text = "Required Accommodation Photos (2 Pictures)",
           fontSize = 14.sp,
           fontWeight = FontWeight.Bold,
-          color = ZawitcoBlue
+          color = Color.Black
         )
         Text(
           text = "Every accommodation record requires 1. Billing Picture and 2. Door Picture",
           fontSize = 12.sp,
-          color = Slate600
+          color = Color.Black
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -217,7 +234,7 @@ fun AddEditAccommodationDialog(
                 text = "1. Billing Picture",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Slate700
+                color = Color.Black
               )
             }
             Spacer(modifier = Modifier.height(6.dp))
@@ -254,42 +271,42 @@ fun AddEditAccommodationDialog(
                 }
               }
             } else {
-              Box(
+              Surface(
+                onClick = {
+                  billingPhotoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                  )
+                },
                 modifier = Modifier
                   .fillMaxWidth()
                   .height(130.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
-                  .background(Slate100)
-                  .clickable {
-                    billingPhotoPickerLauncher.launch(
-                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                  }
-                  .testTag("pick_billing_picture_button"),
-                contentAlignment = Alignment.Center
+                  .testTag("add_billing_picture_button"),
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFFFFF7ED),
+                border = BorderStroke(1.5.dp, ZawitcoOrange.copy(alpha = 0.5f))
               ) {
                 Column(
+                  modifier = Modifier.padding(8.dp),
                   horizontalAlignment = Alignment.CenterHorizontally,
-                  modifier = Modifier.padding(6.dp)
+                  verticalArrangement = Arrangement.Center
                 ) {
                   Icon(
                     imageVector = Icons.Outlined.AddAPhoto,
                     contentDescription = null,
                     tint = ZawitcoOrange,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(28.dp)
                   )
-                  Spacer(modifier = Modifier.height(4.dp))
+                  Spacer(modifier = Modifier.height(6.dp))
                   Text(
-                    text = "Upload Billing",
-                    fontSize = 12.sp,
+                    text = "Upload Billing Photo",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = ZawitcoOrange
+                    color = Color.Black
                   )
                   Text(
-                    text = "Invoice / Bill photo",
+                    text = "Invoice / Bill paper",
                     fontSize = 10.sp,
-                    color = Slate400
+                    color = Color.Black
                   )
                 }
               }
@@ -310,7 +327,7 @@ fun AddEditAccommodationDialog(
                 text = "2. Door Picture",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Slate700
+                color = Color.Black
               )
             }
             Spacer(modifier = Modifier.height(6.dp))
@@ -347,42 +364,42 @@ fun AddEditAccommodationDialog(
                 }
               }
             } else {
-              Box(
+              Surface(
+                onClick = {
+                  doorPhotoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                  )
+                },
                 modifier = Modifier
                   .fillMaxWidth()
                   .height(130.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
-                  .background(Slate100)
-                  .clickable {
-                    doorPhotoPickerLauncher.launch(
-                      PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                  }
-                  .testTag("pick_door_picture_button"),
-                contentAlignment = Alignment.Center
+                  .testTag("add_door_picture_button"),
+                shape = RoundedCornerShape(12.dp),
+                color = ZawitcoLightBlue,
+                border = BorderStroke(1.5.dp, ZawitcoBlue.copy(alpha = 0.5f))
               ) {
                 Column(
+                  modifier = Modifier.padding(8.dp),
                   horizontalAlignment = Alignment.CenterHorizontally,
-                  modifier = Modifier.padding(6.dp)
+                  verticalArrangement = Arrangement.Center
                 ) {
                   Icon(
                     imageVector = Icons.Outlined.PhotoCamera,
                     contentDescription = null,
                     tint = ZawitcoBlue,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(28.dp)
                   )
-                  Spacer(modifier = Modifier.height(4.dp))
+                  Spacer(modifier = Modifier.height(6.dp))
                   Text(
-                    text = "Upload Door",
-                    fontSize = 12.sp,
+                    text = "Upload Door Photo",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = ZawitcoBlue
+                    color = Color.Black
                   )
                   Text(
-                    text = "Front entrance / Door",
+                    text = "Room/Villa entrance",
                     fontSize = 10.sp,
-                    color = Slate400
+                    color = Color.Black
                   )
                 }
               }
@@ -390,7 +407,19 @@ fun AddEditAccommodationDialog(
           }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
+
+        // ==========================================
+        // TEXT DATA FIELDS
+        // ==========================================
+        Text(
+          text = "Accommodation Information",
+          fontSize = 14.sp,
+          fontWeight = FontWeight.Bold,
+          color = Color.Black
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         // Area Name & Villa Number
         Row(
@@ -403,13 +432,14 @@ fun AddEditAccommodationDialog(
               areaName = it
               if (it.isNotBlank()) areaNameError = false
             },
-            label = { Text("Area Name *") },
-            placeholder = { Text("e.g. Al Olaya District") },
+            label = { Text("Area Name *", color = Color.Black) },
+            placeholder = { Text("e.g. Al Olaya District", color = Slate400) },
             isError = areaNameError,
             supportingText = if (areaNameError) {
-              { Text("Area Name is required") }
+              { Text("Area Name is required", color = Color.Red) }
             } else null,
             singleLine = true,
+            colors = defaultTextFieldColors,
             modifier = Modifier
               .weight(1.3f)
               .testTag("input_area_name")
@@ -418,9 +448,10 @@ fun AddEditAccommodationDialog(
           OutlinedTextField(
             value = villaNumber,
             onValueChange = { villaNumber = it },
-            label = { Text("Villa Number") },
-            placeholder = { Text("e.g. 14B") },
+            label = { Text("Villa Number", color = Color.Black) },
+            placeholder = { Text("e.g. 14B", color = Slate400) },
             singleLine = true,
+            colors = defaultTextFieldColors,
             modifier = Modifier
               .weight(1f)
               .testTag("input_villa_number")
@@ -429,7 +460,7 @@ fun AddEditAccommodationDialog(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Floor Number & Room Number
+        // Floor Number, Room Number & Station Name
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -437,9 +468,10 @@ fun AddEditAccommodationDialog(
           OutlinedTextField(
             value = floorNumber,
             onValueChange = { floorNumber = it },
-            label = { Text("Floor Number") },
-            placeholder = { Text("e.g. 2nd Floor") },
+            label = { Text("Floor Number", color = Color.Black) },
+            placeholder = { Text("e.g. 2nd Floor", color = Slate400) },
             singleLine = true,
+            colors = defaultTextFieldColors,
             modifier = Modifier
               .weight(1f)
               .testTag("input_floor_number")
@@ -448,12 +480,63 @@ fun AddEditAccommodationDialog(
           OutlinedTextField(
             value = roomNumber,
             onValueChange = { roomNumber = it },
-            label = { Text("Room Number(s)") },
-            placeholder = { Text("e.g. 201, 202") },
+            label = { Text("Room Number(s)", color = Color.Black) },
+            placeholder = { Text("e.g. 201, 202", color = Slate400) },
             singleLine = true,
+            colors = defaultTextFieldColors,
             modifier = Modifier
               .weight(1.2f)
               .testTag("input_room_number")
+          )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Assigned Station Hub
+        OutlinedTextField(
+          value = stationName,
+          onValueChange = { stationName = it },
+          label = { Text("Assigned Station Hub", color = Color.Black) },
+          placeholder = { Text("e.g. Riyadh Central Hub, Dammam Hub", color = Slate400) },
+          leadingIcon = {
+            Icon(Icons.Default.Hub, contentDescription = null, tint = ZawitcoBlue)
+          },
+          singleLine = true,
+          colors = defaultTextFieldColors,
+          modifier = Modifier
+            .fillMaxWidth()
+            .testTag("input_station_name")
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Coordinates: Latitude & Longitude
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          OutlinedTextField(
+            value = latitudeStr,
+            onValueChange = { latitudeStr = it },
+            label = { Text("Latitude", color = Color.Black) },
+            placeholder = { Text("24.7136", color = Slate400) },
+            singleLine = true,
+            colors = defaultTextFieldColors,
+            modifier = Modifier
+              .weight(1f)
+              .testTag("input_latitude")
+          )
+
+          OutlinedTextField(
+            value = longitudeStr,
+            onValueChange = { longitudeStr = it },
+            label = { Text("Longitude", color = Color.Black) },
+            placeholder = { Text("46.6753", color = Slate400) },
+            singleLine = true,
+            colors = defaultTextFieldColors,
+            modifier = Modifier
+              .weight(1f)
+              .testTag("input_longitude")
           )
         }
 
@@ -467,9 +550,10 @@ fun AddEditAccommodationDialog(
           OutlinedTextField(
             value = workerPhone,
             onValueChange = { workerPhone = it },
-            label = { Text("Worker's Phone") },
-            placeholder = { Text("+966 5...") },
+            label = { Text("Worker's Phone", color = Color.Black) },
+            placeholder = { Text("+966 5...", color = Slate400) },
             singleLine = true,
+            colors = defaultTextFieldColors,
             modifier = Modifier
               .weight(1f)
               .testTag("input_worker_phone")
@@ -478,9 +562,10 @@ fun AddEditAccommodationDialog(
           OutlinedTextField(
             value = ownerPhone,
             onValueChange = { ownerPhone = it },
-            label = { Text("Owner's Phone") },
-            placeholder = { Text("+966 5...") },
+            label = { Text("Owner's Phone", color = Color.Black) },
+            placeholder = { Text("+966 5...", color = Slate400) },
             singleLine = true,
+            colors = defaultTextFieldColors,
             modifier = Modifier
               .weight(1f)
               .testTag("input_owner_phone")
@@ -493,9 +578,10 @@ fun AddEditAccommodationDialog(
         OutlinedTextField(
           value = whatsappGroupUrl,
           onValueChange = { whatsappGroupUrl = it },
-          label = { Text("WhatsApp Group / Contact Link") },
-          placeholder = { Text("https://chat.whatsapp.com/... or https://wa.me/...") },
+          label = { Text("WhatsApp Group / Contact Link", color = Color.Black) },
+          placeholder = { Text("https://chat.whatsapp.com/... or https://wa.me/...", color = Slate400) },
           singleLine = true,
+          colors = defaultTextFieldColors,
           modifier = Modifier
             .fillMaxWidth()
             .testTag("input_whatsapp_group_url")
@@ -507,9 +593,10 @@ fun AddEditAccommodationDialog(
         OutlinedTextField(
           value = googleMapsUrl,
           onValueChange = { googleMapsUrl = it },
-          label = { Text("Google Maps URL (Optional Link)") },
-          placeholder = { Text("https://maps.google.com/...") },
+          label = { Text("Google Maps URL (Optional Link)", color = Color.Black) },
+          placeholder = { Text("https://maps.google.com/...", color = Slate400) },
           singleLine = true,
+          colors = defaultTextFieldColors,
           modifier = Modifier
             .fillMaxWidth()
             .testTag("input_maps_url")
@@ -521,9 +608,10 @@ fun AddEditAccommodationDialog(
         OutlinedTextField(
           value = notes,
           onValueChange = { notes = it },
-          label = { Text("Accommodation Notes & Amenities") },
-          placeholder = { Text("e.g. WiFi included, 3 ACs, near supermarket...") },
+          label = { Text("Accommodation Notes & Amenities", color = Color.Black) },
+          placeholder = { Text("e.g. WiFi included, 3 ACs, near supermarket...", color = Slate400) },
           maxLines = 3,
+          colors = defaultTextFieldColors,
           modifier = Modifier
             .fillMaxWidth()
             .testTag("input_notes")
@@ -539,6 +627,9 @@ fun AddEditAccommodationDialog(
               return@Button
             }
 
+            val lat = latitudeStr.toDoubleOrNull() ?: initialItem?.latitude
+            val lng = longitudeStr.toDoubleOrNull() ?: initialItem?.longitude
+
             onSave(
               initialItem?.id ?: 0L,
               areaName,
@@ -548,13 +639,14 @@ fun AddEditAccommodationDialog(
               workerPhone,
               ownerPhone,
               googleMapsUrl,
-              initialItem?.latitude,
-              initialItem?.longitude,
+              lat,
+              lng,
               billingPictureUri ?: initialItem?.buildingImageUri,
               billingPictureUri,
               doorPictureUri,
               notes,
-              whatsappGroupUrl
+              whatsappGroupUrl,
+              stationName
             )
           },
           colors = ButtonDefaults.buttonColors(

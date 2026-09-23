@@ -21,5 +21,6 @@ data class Accommodation(
   val doorPictureUri: String? = null,    // 2. Door Picture
   val notes: String = "",
   val whatsappGroupUrl: String = "",
+  val stationName: String = "",          // Assigned or nearest station
   val createdAt: Long = System.currentTimeMillis()
 )

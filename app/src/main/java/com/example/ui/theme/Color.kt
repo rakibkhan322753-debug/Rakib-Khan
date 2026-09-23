@@ -16,6 +16,11 @@ val EmeraldGreen = Color(0xFF10B981)
 val DarkGreen = Color(0xFF059669)
 val LightGreen = Color(0xFFD1FAE5)
 
+// Black Writing & High Contrast Text Colors
+val TextBlack = Color(0xFF000000)
+val TextPrimaryBlack = Color(0xFF111827)
+val TextSecondaryBlack = Color(0xFF1F2937)
+
 val Slate900 = Color(0xFF0F172A)
 val Slate800 = Color(0xFF1E293B)
 val Slate700 = Color(0xFF334155)

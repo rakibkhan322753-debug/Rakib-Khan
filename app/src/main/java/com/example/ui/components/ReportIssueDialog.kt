@@ -157,11 +157,19 @@ fun ReportIssueDialog(
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF991B1B)
               )
-              Text(
-                text = "${accommodation.areaName} • Villa ${accommodation.villaNumber.ifBlank { "N/A" }}",
-                fontSize = 12.sp,
-                color = Slate600
-              )
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                  text = accommodation.areaName,
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = ZawitcoBlue
+                )
+                Text(
+                  text = " • Villa ${accommodation.villaNumber.ifBlank { "N/A" }}",
+                  fontSize = 12.sp,
+                  color = Slate600
+                )
+              }
             }
           }
 

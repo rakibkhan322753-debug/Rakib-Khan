@@ -1,7 +1,6 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,10 +16,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,11 +40,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.UserAccount
 import com.example.ui.theme.DarkGreen
 import com.example.ui.theme.LightGreen
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
-import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.ZawitcoBlue
 import com.example.ui.theme.ZawitcoLightBlue
@@ -53,8 +55,13 @@ private val WhatsAppColor = Color(0xFF25D366)
 @Composable
 fun HeaderBar(
   isAdmin: Boolean,
+  currentUser: UserAccount?,
   onAdminClick: () -> Unit,
   onWhatsAppClick: () -> Unit,
+  onExportExcelClick: () -> Unit,
+  onBulkUploadClick: () -> Unit,
+  onCloudBackupClick: () -> Unit,
+  onUserAccountsClick: () -> Unit,
   onAddNewClick: () -> Unit,
   onLogout: () -> Unit,
   modifier: Modifier = Modifier
@@ -76,20 +83,90 @@ fun HeaderBar(
       ) {
         // Official Zawitco Company Logo & Brand Name
         ZawitcoCompanyLogo(
-          height = 38.dp,
+          height = 36.dp,
           showSubtext = true
         )
 
-        // Action controls: WhatsApp link, Admin status/toggle, Add button, and Logout button
+        // Action controls
         Row(
           verticalAlignment = Alignment.CenterVertically,
-          horizontalArrangement = Arrangement.spacedBy(6.dp)
+          horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-          // WhatsApp Group Community Button
+          // Export Excel Anytime Button
+          IconButton(
+            onClick = onExportExcelClick,
+            modifier = Modifier
+              .size(34.dp)
+              .clip(CircleShape)
+              .background(Color(0xFFDCFCE7))
+              .testTag("header_export_excel_button")
+          ) {
+            Icon(
+              imageVector = Icons.Default.TableChart,
+              contentDescription = "Export Excel File",
+              tint = Color(0xFF15803D),
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          // Bulk Data File Upload Button
+          IconButton(
+            onClick = onBulkUploadClick,
+            modifier = Modifier
+              .size(34.dp)
+              .clip(CircleShape)
+              .background(ZawitcoLightBlue)
+              .testTag("header_bulk_upload_button")
+          ) {
+            Icon(
+              imageVector = Icons.Default.CloudUpload,
+              contentDescription = "Bulk Data File Upload",
+              tint = ZawitcoBlue,
+              modifier = Modifier.size(18.dp)
+            )
+          }
+
+          // Google Cloud / Firebase Cloud Server Backup & Sync Button
+          IconButton(
+            onClick = onCloudBackupClick,
+            modifier = Modifier
+              .size(34.dp)
+              .clip(CircleShape)
+              .background(Color(0xFFE0F2FE))
+              .testTag("header_cloud_backup_button")
+          ) {
+            Icon(
+              imageVector = Icons.Default.CloudSync,
+              contentDescription = "Google Cloud / Firebase Backup & Sync",
+              tint = ZawitcoBlue,
+              modifier = Modifier.size(19.dp)
+            )
+          }
+
+          // User Accounts Management (Admin Only)
+          if (isAdmin) {
+            IconButton(
+              onClick = onUserAccountsClick,
+              modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFFFEDD5))
+                .testTag("header_user_accounts_button")
+            ) {
+              Icon(
+                imageVector = Icons.Default.ManageAccounts,
+                contentDescription = "User Accounts Management",
+                tint = Color(0xFFC2410C),
+                modifier = Modifier.size(18.dp)
+              )
+            }
+          }
+
+          // WhatsApp Community Link Button
           IconButton(
             onClick = onWhatsAppClick,
             modifier = Modifier
-              .size(36.dp)
+              .size(34.dp)
               .clip(CircleShape)
               .background(Color(0xFFE8F8F0))
               .testTag("header_whatsapp_button")
@@ -98,80 +175,80 @@ fun HeaderBar(
               imageVector = Icons.Default.Group,
               contentDescription = "WhatsApp Group Link",
               tint = WhatsAppColor,
-              modifier = Modifier.size(19.dp)
+              modifier = Modifier.size(18.dp)
             )
           }
 
-          // Role Status Badge (Admin or Viewer)
+          // Role Badge / User Indicator
           Surface(
             onClick = onAdminClick,
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(8.dp),
             color = if (isAdmin) LightGreen else ZawitcoLightBlue,
             border = androidx.compose.foundation.BorderStroke(
               1.dp,
-              if (isAdmin) DarkGreen.copy(alpha = 0.3f) else ZawitcoBlue.copy(alpha = 0.3f)
+              if (isAdmin) DarkGreen.copy(alpha = 0.4f) else ZawitcoBlue.copy(alpha = 0.4f)
             ),
             modifier = Modifier.testTag("header_admin_mode_button")
           ) {
             Row(
-              modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+              modifier = Modifier.padding(horizontal = 7.dp, vertical = 5.dp),
               verticalAlignment = Alignment.CenterVertically
             ) {
               Icon(
                 imageVector = if (isAdmin) Icons.Default.LockOpen else Icons.Outlined.Visibility,
-                contentDescription = if (isAdmin) "Admin Access Enabled" else "Viewer Mode",
+                contentDescription = null,
                 tint = if (isAdmin) DarkGreen else ZawitcoBlue,
-                modifier = Modifier.size(15.dp)
+                modifier = Modifier.size(14.dp)
               )
-              Spacer(modifier = Modifier.width(4.dp))
+              Spacer(modifier = Modifier.width(3.dp))
               Text(
-                text = if (isAdmin) "Admin" else "Viewer",
-                fontSize = 11.sp,
+                text = if (isAdmin) "Admin" else (currentUser?.username?.take(7) ?: "Viewer"),
+                fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (isAdmin) DarkGreen else ZawitcoBlue
               )
             }
           }
 
-          // "Add New" button - Full CRUD only for admin
+          // "Add" accommodation button (Admin only)
           Button(
             onClick = onAddNewClick,
             colors = ButtonDefaults.buttonColors(
               containerColor = if (isAdmin) ZawitcoOrange else Slate200,
               contentColor = if (isAdmin) Color.White else Slate600
             ),
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(8.dp),
             modifier = Modifier
-              .height(36.dp)
+              .height(34.dp)
               .testTag("add_new_accommodation_button")
           ) {
             Icon(
               imageVector = if (isAdmin) Icons.Default.Add else Icons.Default.Lock,
-              contentDescription = "Add New Accommodation",
-              modifier = Modifier.size(15.dp)
+              contentDescription = "Add Accommodation",
+              modifier = Modifier.size(14.dp)
             )
-            Spacer(modifier = Modifier.width(3.dp))
+            Spacer(modifier = Modifier.width(2.dp))
             Text(
               text = "Add",
               fontWeight = FontWeight.Bold,
-              fontSize = 12.sp
+              fontSize = 11.sp
             )
           }
 
-          // Logout Button: Return to Login Screen
+          // Full Sign Out Button: Returns to Login Interface
           IconButton(
             onClick = onLogout,
             modifier = Modifier
-              .size(36.dp)
+              .size(34.dp)
               .clip(CircleShape)
               .background(Slate100)
               .testTag("header_logout_button")
           ) {
             Icon(
               imageVector = Icons.AutoMirrored.Filled.Logout,
-              contentDescription = "Log Out to Login Interface",
-              tint = Slate500,
-              modifier = Modifier.size(18.dp)
+              contentDescription = "Sign Out",
+              tint = Color.Black,
+              modifier = Modifier.size(17.dp)
             )
           }
         }

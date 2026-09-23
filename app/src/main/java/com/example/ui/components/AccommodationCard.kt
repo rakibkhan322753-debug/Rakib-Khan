@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.outlined.Delete
@@ -32,6 +33,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,12 +53,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.Accommodation
-import com.example.ui.theme.DarkGreen
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
-import com.example.ui.theme.Slate600
-import com.example.ui.theme.Slate700
 import com.example.ui.theme.ZawitcoBlue
 import com.example.ui.theme.ZawitcoLightBlue
 import com.example.ui.theme.ZawitcoOrange
@@ -81,9 +80,9 @@ fun AccommodationCard(
   if (showDeleteConfirm) {
     AlertDialog(
       onDismissRequest = { showDeleteConfirm = false },
-      title = { Text("Delete Accommodation", fontWeight = FontWeight.Bold) },
+      title = { Text("Delete Accommodation", fontWeight = FontWeight.Bold, color = Color.Black) },
       text = {
-        Text("Are you sure you want to remove '${accommodation.areaName}'? This action cannot be undone.")
+        Text("Are you sure you want to remove '${accommodation.areaName}'? This action cannot be undone.", color = Color.Black)
       },
       confirmButton = {
         TextButton(
@@ -98,7 +97,7 @@ fun AccommodationCard(
       },
       dismissButton = {
         TextButton(onClick = { showDeleteConfirm = false }) {
-          Text("Cancel")
+          Text("Cancel", color = Color.Black)
         }
       }
     )
@@ -120,7 +119,7 @@ fun AccommodationCard(
         .fillMaxWidth()
         .padding(16.dp)
     ) {
-      // Top row: Area Name, Notification Badge, and Action buttons
+      // Top row: Area Name, Station Badge, Notification Badge, and Action buttons
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -148,12 +147,30 @@ fun AccommodationCard(
           Column {
             Text(
               text = accommodation.areaName,
-              fontSize = 18.sp,
+              fontSize = 17.sp,
               fontWeight = FontWeight.Bold,
               color = ZawitcoBlue,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis
             )
+
+            if (accommodation.stationName.isNotBlank()) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                  imageVector = Icons.Default.Hub,
+                  contentDescription = null,
+                  tint = ZawitcoBlue,
+                  modifier = Modifier.size(11.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                  text = "Station: ${accommodation.stationName}",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.SemiBold,
+                  color = Color.Black
+                )
+              }
+            }
 
             // Notifications alert indicator if requirements or reports exist
             if (hasPendingAlert) {
@@ -211,8 +228,8 @@ fun AccommodationCard(
               Icon(
                 imageVector = Icons.Outlined.Edit,
                 contentDescription = "Edit Accommodation",
-                tint = Slate500,
-                modifier = Modifier.size(20.dp)
+                tint = Color.Black,
+                modifier = Modifier.size(18.dp)
               )
             }
 
@@ -226,7 +243,7 @@ fun AccommodationCard(
                 imageVector = Icons.Outlined.Delete,
                 contentDescription = "Delete Accommodation",
                 tint = Color(0xFFEF4444),
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(18.dp)
               )
             }
           }
@@ -321,7 +338,7 @@ fun AccommodationCard(
         text = if (accommodation.villaNumber.isNotBlank()) "Villa: #${accommodation.villaNumber}" else "Villa: N/A",
         fontSize = 14.sp,
         fontWeight = FontWeight.SemiBold,
-        color = Slate600
+        color = Color.Black
       )
 
       Spacer(modifier = Modifier.height(8.dp))
@@ -340,12 +357,12 @@ fun AccommodationCard(
             text = "Floor: ",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = Slate700
+            color = Color.Black
           )
           Text(
             text = accommodation.floorNumber.ifBlank { "N/A" },
             fontSize = 12.sp,
-            color = Slate600
+            color = Color.Black
           )
         }
 
@@ -353,7 +370,7 @@ fun AccommodationCard(
           Icon(
             imageVector = Icons.Outlined.MeetingRoom,
             contentDescription = null,
-            tint = Slate500,
+            tint = Color.Black,
             modifier = Modifier.size(15.dp)
           )
           Spacer(modifier = Modifier.width(3.dp))
@@ -361,12 +378,12 @@ fun AccommodationCard(
             text = "Room: ",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = Slate700
+            color = Color.Black
           )
           Text(
             text = accommodation.roomNumber.ifBlank { "N/A" },
             fontSize = 12.sp,
-            color = Slate600
+            color = Color.Black
           )
         }
       }
@@ -381,7 +398,7 @@ fun AccommodationCard(
           Icon(
             imageVector = Icons.Outlined.Phone,
             contentDescription = null,
-            tint = Slate500,
+            tint = Color.Black,
             modifier = Modifier.size(13.dp)
           )
           Spacer(modifier = Modifier.width(4.dp))
@@ -391,7 +408,7 @@ fun AccommodationCard(
               accommodation.ownerPhone.takeIf { it.isNotBlank() }?.let { "Owner: $it" }
             ).joinToString("  •  "),
             fontSize = 11.sp,
-            color = Slate500,
+            color = Color.Black,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
           )
@@ -417,7 +434,7 @@ fun AccommodationCard(
         ) {
           Text(
             text = "View Details",
-            color = ZawitcoBlue,
+            color = Color.Black,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
           )
@@ -425,7 +442,7 @@ fun AccommodationCard(
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
-            tint = ZawitcoBlue,
+            tint = Color.Black,
             modifier = Modifier.size(16.dp)
           )
         }

@@ -9,6 +9,8 @@ import com.example.data.model.Accommodation
 import com.example.data.model.AccommodationReport
 import com.example.data.model.AccommodationRequirement
 import com.example.data.model.Location
+import com.example.data.model.Station
+import com.example.data.model.UserAccount
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -18,9 +20,11 @@ import kotlinx.coroutines.launch
     Accommodation::class,
     Location::class,
     AccommodationRequirement::class,
-    AccommodationReport::class
+    AccommodationReport::class,
+    UserAccount::class,
+    Station::class
   ],
-  version = 4,
+  version = 5,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,6 +33,8 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun locationDao(): LocationDao
   abstract fun requirementDao(): AccommodationRequirementDao
   abstract fun reportDao(): AccommodationReportDao
+  abstract fun userAccountDao(): UserAccountDao
+  abstract fun stationDao(): StationDao
 
   companion object {
     @Volatile
@@ -60,7 +66,9 @@ abstract class AppDatabase : RoomDatabase() {
               database.accommodationDao(),
               database.locationDao(),
               database.requirementDao(),
-              database.reportDao()
+              database.reportDao(),
+              database.userAccountDao(),
+              database.stationDao()
             )
           }
         }
@@ -70,8 +78,11 @@ abstract class AppDatabase : RoomDatabase() {
         dao: AccommodationDao,
         locDao: LocationDao,
         reqDao: AccommodationRequirementDao,
-        reportDao: AccommodationReportDao
+        reportDao: AccommodationReportDao,
+        userDao: UserAccountDao,
+        stationDao: StationDao
       ) {
+        // Initial Accommodations
         val initialAccommodations = listOf(
           Accommodation(
             areaName = "Al Olaya District",
@@ -83,6 +94,7 @@ abstract class AppDatabase : RoomDatabase() {
             googleMapsUrl = "https://maps.google.com/?q=24.7136,46.6753",
             latitude = 24.7136,
             longitude = 46.6753,
+            stationName = "Riyadh Central Hub",
             notes = "Prime central location near King Fahd Road. Fully furnished with high-speed internet."
           ),
           Accommodation(
@@ -95,6 +107,7 @@ abstract class AppDatabase : RoomDatabase() {
             googleMapsUrl = "https://maps.google.com/?q=24.6657,46.7369",
             latitude = 24.6657,
             longitude = 46.7369,
+            stationName = "East Riyadh Station",
             notes = "Spacious staff accommodation, close to public transport and Malaz central market."
           ),
           Accommodation(
@@ -107,11 +120,78 @@ abstract class AppDatabase : RoomDatabase() {
             googleMapsUrl = "https://maps.google.com/?q=24.6984,46.7028",
             latitude = 24.6984,
             longitude = 46.7028,
+            stationName = "North Riyadh Depot",
             notes = "Executive villa unit with dedicated parking and proximity to commercial center."
           )
         )
         dao.insertAll(initialAccommodations)
 
+        // Initial Stations
+        val initialStations = listOf(
+          Station(
+            name = "Riyadh Central Hub",
+            code = "RC-01",
+            areaName = "Al Olaya District",
+            city = "Riyadh",
+            latitude = 24.7136,
+            longitude = 46.6753,
+            address = "King Fahd Road, Al Olaya, Riyadh",
+            supervisorName = "Eng. Ahmed Al-Zahrani",
+            supervisorPhone = "+966 50 111 2233",
+            capacityLimit = 60,
+            notes = "Main central operations station."
+          ),
+          Station(
+            name = "East Riyadh Station",
+            code = "ER-02",
+            areaName = "Al Malaz",
+            city = "Riyadh",
+            latitude = 24.6657,
+            longitude = 46.7369,
+            address = "Salah Al-Din Road, Al Malaz, Riyadh",
+            supervisorName = "Eng. Khalid Al-Mutairi",
+            supervisorPhone = "+966 55 444 5566",
+            capacityLimit = 40,
+            notes = "Logistics depot serving eastern residential staff units."
+          ),
+          Station(
+            name = "North Riyadh Depot",
+            code = "NR-03",
+            areaName = "Al Sulaimaniya",
+            city = "Riyadh",
+            latitude = 24.6984,
+            longitude = 46.7028,
+            address = "Prince Mutaib bin Abdulaziz Rd, Al Sulaimaniya",
+            supervisorName = "Eng. Tariq Al-Ghamdi",
+            supervisorPhone = "+966 54 777 8899",
+            capacityLimit = 35,
+            notes = "Northern engineering and supervisor depot."
+          )
+        )
+        stationDao.insertAll(initialStations)
+
+        // Initial User Accounts
+        val initialUsers = listOf(
+          UserAccount(
+            username = "admin",
+            passwordHash = "322753",
+            fullName = "Zawitco General Admin",
+            role = "ADMIN",
+            assignedStation = "Riyadh Central Hub",
+            phone = "+966 50 000 0001"
+          ),
+          UserAccount(
+            username = "staff1",
+            passwordHash = "Zawitco",
+            fullName = "Field Operations Staff",
+            role = "USER",
+            assignedStation = "East Riyadh Station",
+            phone = "+966 55 123 4567"
+          )
+        )
+        userDao.insertAll(initialUsers)
+
+        // Initial Locations
         val initialLocations = listOf(
           Location(
             name = "Al Olaya Executive Villa",
@@ -167,7 +247,7 @@ abstract class AppDatabase : RoomDatabase() {
         )
         locDao.insertAll(initialLocations)
 
-        // Seed sample requirement & report so notification and data display are immediately visible & testable
+        // Initial Requirements
         val initialRequirements = listOf(
           AccommodationRequirement(
             accommodationId = 1L,
@@ -190,6 +270,7 @@ abstract class AppDatabase : RoomDatabase() {
         )
         reqDao.insertAll(initialRequirements)
 
+        // Initial Reports
         val initialReports = listOf(
           AccommodationReport(
             accommodationId = 1L,

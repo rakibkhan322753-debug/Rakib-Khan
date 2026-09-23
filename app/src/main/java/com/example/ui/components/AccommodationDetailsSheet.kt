@@ -30,9 +30,12 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Sms
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -43,7 +46,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,12 +83,16 @@ fun AccommodationDetailsSheet(
   accommodation: Accommodation,
   requirementsCount: Int = 0,
   reportsCount: Int = 0,
+  isAdmin: Boolean = false,
+  onEdit: (() -> Unit)? = null,
+  onDelete: (() -> Unit)? = null,
   onOpenRequirements: () -> Unit,
   onOpenReports: () -> Unit,
   onDismiss: () -> Unit,
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
+  var showDeleteConfirm by remember { mutableStateOf(false) }
 
   val billingImg = accommodation.billingPictureUri ?: accommodation.buildingImageUri
   val doorImg = accommodation.doorPictureUri
@@ -102,27 +114,71 @@ fun AccommodationDetailsSheet(
           .fillMaxWidth()
           .verticalScroll(rememberScrollState())
       ) {
-        // Top Bar with Brand Logo and Close Button
-        Box(
+        // Top Bar with Brand Logo and Action Buttons
+        Row(
           modifier = Modifier
             .fillMaxWidth()
-            .padding(14.dp)
+            .padding(14.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
         ) {
           ZawitcoCompanyLogo(height = 36.dp, showSubtext = true)
 
-          IconButton(
-            onClick = onDismiss,
-            modifier = Modifier
-              .align(Alignment.CenterEnd)
-              .background(Slate100, CircleShape)
-              .size(36.dp)
-              .testTag("close_details_dialog")
-          ) {
-            Icon(
-              imageVector = Icons.Default.Close,
-              contentDescription = "Close",
-              tint = Slate700
-            )
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            if (isAdmin && onEdit != null) {
+              IconButton(
+                onClick = {
+                  onDismiss()
+                  onEdit()
+                },
+                modifier = Modifier
+                  .background(ZawitcoLightBlue, CircleShape)
+                  .size(36.dp)
+                  .testTag("details_edit_accommodation_button")
+              ) {
+                Icon(
+                  imageVector = Icons.Outlined.Edit,
+                  contentDescription = "Edit Accommodation",
+                  tint = ZawitcoBlue,
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+              Spacer(modifier = Modifier.width(6.dp))
+            }
+
+            if (isAdmin && onDelete != null) {
+              IconButton(
+                onClick = {
+                  showDeleteConfirm = true
+                },
+                modifier = Modifier
+                  .background(Color(0xFFFEE2E2), CircleShape)
+                  .size(36.dp)
+                  .testTag("details_delete_accommodation_button")
+              ) {
+                Icon(
+                  imageVector = Icons.Outlined.Delete,
+                  contentDescription = "Delete Accommodation",
+                  tint = Color(0xFFDC2626),
+                  modifier = Modifier.size(18.dp)
+                )
+              }
+              Spacer(modifier = Modifier.width(6.dp))
+            }
+
+            IconButton(
+              onClick = onDismiss,
+              modifier = Modifier
+                .background(Slate100, CircleShape)
+                .size(36.dp)
+                .testTag("close_details_dialog")
+            ) {
+              Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Close",
+                tint = Slate700
+              )
+            }
           }
         }
 
@@ -399,6 +455,53 @@ fun AccommodationDetailsSheet(
           )
 
           Spacer(modifier = Modifier.height(14.dp))
+
+          // Assigned Station & GPS Coordinates
+          if (accommodation.stationName.isNotBlank() || (accommodation.latitude != null && accommodation.longitude != null)) {
+            Card(
+              modifier = Modifier.fillMaxWidth(),
+              shape = RoundedCornerShape(12.dp),
+              colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+              border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+            ) {
+              Column(modifier = Modifier.padding(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Icon(
+                    imageVector = Icons.Outlined.Place,
+                    contentDescription = null,
+                    tint = Color(0xFF16A34A),
+                    modifier = Modifier.size(16.dp)
+                  )
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(
+                    text = "STATION & LOCATION DETAILS",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    letterSpacing = 0.8.sp
+                  )
+                }
+                if (accommodation.stationName.isNotBlank()) {
+                  Spacer(modifier = Modifier.height(4.dp))
+                  Text(
+                    text = "Station Hub: ${accommodation.stationName}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                  )
+                }
+                if (accommodation.latitude != null && accommodation.longitude != null) {
+                  Spacer(modifier = Modifier.height(2.dp))
+                  Text(
+                    text = "GPS Coordinates: ${String.format("%.5f", accommodation.latitude)}, ${String.format("%.5f", accommodation.longitude)}",
+                    fontSize = 12.sp,
+                    color = Color.Black
+                  )
+                }
+              }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+          }
 
           // Floor & Room Cards
           Row(
@@ -714,5 +817,38 @@ fun AccommodationDetailsSheet(
         }
       }
     }
+  }
+
+  if (showDeleteConfirm) {
+    AlertDialog(
+      onDismissRequest = { showDeleteConfirm = false },
+      title = {
+        Text("Delete Accommodation?", fontWeight = FontWeight.Bold, color = Color.Black)
+      },
+      text = {
+        Text(
+          "Are you sure you want to delete accommodation in ${accommodation.areaName} (Villa ${accommodation.villaNumber}, Room ${accommodation.roomNumber})? This cannot be undone.",
+          color = Color.Black,
+          fontSize = 13.sp
+        )
+      },
+      confirmButton = {
+        Button(
+          onClick = {
+            showDeleteConfirm = false
+            onDismiss()
+            onDelete?.invoke()
+          },
+          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444), contentColor = Color.White)
+        ) {
+          Text("Delete", fontWeight = FontWeight.Bold)
+        }
+      },
+      dismissButton = {
+        TextButton(onClick = { showDeleteConfirm = false }) {
+          Text("Cancel", color = Color.Black)
+        }
+      }
+    )
   }
 }
