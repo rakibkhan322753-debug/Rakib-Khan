@@ -52,7 +52,9 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -174,6 +176,8 @@ fun ZawitcoAccommodationApp(
   val globalWhatsAppUrl by viewModel.globalWhatsAppUrl.collectAsStateWithLifecycle()
   val showWhatsAppDialog by viewModel.showWhatsAppDialog.collectAsStateWithLifecycle()
 
+  var isSearchActive by remember { mutableStateOf(false) }
+
   // 1st screen on app launch: Full Sign-In Interface
   if (currentUserRole == UserRole.LOGGED_OUT) {
     LoginScreen(
@@ -192,6 +196,15 @@ fun ZawitcoAccommodationApp(
         HeaderBar(
           isAdmin = isAdmin,
           currentUser = currentLoggedUser,
+          isSearchActive = isSearchActive,
+          searchQuery = searchQuery,
+          onToggleSearch = {
+            isSearchActive = !isSearchActive
+            if (!isSearchActive) {
+              viewModel.onSearchQueryChange("")
+            }
+          },
+          onSearchQueryChange = { viewModel.onSearchQueryChange(it) },
           onAdminClick = { viewModel.openAdminDialog() },
           onWhatsAppClick = { viewModel.openWhatsAppDialog() },
           onExportExcelClick = { viewModel.openExcelExportDialog() },
@@ -201,72 +214,6 @@ fun ZawitcoAccommodationApp(
           onAddNewClick = { viewModel.openAddDialog() },
           onLogout = { viewModel.logout() }
         )
-
-        // Main Navigation Tabs: Housing Units vs Station & Location Analytics
-        Surface(
-          modifier = Modifier.fillMaxWidth(),
-          color = Color.White,
-          shadowElevation = 2.dp
-        ) {
-          TabRow(
-            selectedTabIndex = if (selectedMainTab == MainViewTab.ACCOMMODATIONS) 0 else 1,
-            containerColor = Color.White,
-            contentColor = ZawitcoBlue,
-            indicator = { tabPositions ->
-              val activeIndex = if (selectedMainTab == MainViewTab.ACCOMMODATIONS) 0 else 1
-              TabRowDefaults.SecondaryIndicator(
-                Modifier.tabIndicatorOffset(tabPositions[activeIndex]),
-                color = if (activeIndex == 0) ZawitcoBlue else ZawitcoOrange
-              )
-            }
-          ) {
-            Tab(
-              selected = selectedMainTab == MainViewTab.ACCOMMODATIONS,
-              onClick = { viewModel.setMainTab(MainViewTab.ACCOMMODATIONS) },
-              modifier = Modifier.testTag("tab_accommodations"),
-              text = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  Icon(
-                    imageVector = Icons.Default.Home,
-                    contentDescription = null,
-                    tint = if (selectedMainTab == MainViewTab.ACCOMMODATIONS) ZawitcoBlue else Color.Black,
-                    modifier = Modifier.size(16.dp)
-                  )
-                  Spacer(modifier = Modifier.width(6.dp))
-                  Text(
-                    text = "Housing Units (${accommodations.size})",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (selectedMainTab == MainViewTab.ACCOMMODATIONS) ZawitcoBlue else Color.Black
-                  )
-                }
-              }
-            )
-
-            Tab(
-              selected = selectedMainTab == MainViewTab.STATIONS_ANALYTICS,
-              onClick = { viewModel.setMainTab(MainViewTab.STATIONS_ANALYTICS) },
-              modifier = Modifier.testTag("tab_stations_analytics"),
-              text = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                  Icon(
-                    imageVector = Icons.Default.Hub,
-                    contentDescription = null,
-                    tint = if (selectedMainTab == MainViewTab.STATIONS_ANALYTICS) ZawitcoOrange else Color.Black,
-                    modifier = Modifier.size(16.dp)
-                  )
-                  Spacer(modifier = Modifier.width(6.dp))
-                  Text(
-                    text = "Stations & Analytics",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (selectedMainTab == MainViewTab.STATIONS_ANALYTICS) ZawitcoOrange else Color.Black
-                  )
-                }
-              }
-            )
-          }
-        }
       }
     }
   ) { innerPadding ->
@@ -275,101 +222,41 @@ fun ZawitcoAccommodationApp(
         .fillMaxSize()
         .padding(innerPadding)
     ) {
-      if (selectedMainTab == MainViewTab.STATIONS_ANALYTICS) {
-        // AUTOMATED GEOSPATIAL & STATION ANALYTICS VIEW
-        LocationAnalyticsView(
-          report = locationAnalysisReport,
-          activeStationFilter = filterStationName,
-          onFilterByStation = { stName ->
-            viewModel.setFilterStationName(stName)
-            if (stName != null) {
-              viewModel.setMainTab(MainViewTab.ACCOMMODATIONS)
-            }
-          },
-          onOpenBulkUpload = { viewModel.openBulkUploadDialog() },
-          onOpenStationManager = { viewModel.openStationManagementDialog() },
-          isAdmin = isAdmin
-        )
-      } else {
-        // HOUSING UNITS DIRECTORY VIEW
-        Column(modifier = Modifier.fillMaxSize()) {
-          // Search & Filter Bar
-          Column(
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(horizontal = 16.dp, vertical = 8.dp)
-          ) {
-            OutlinedTextField(
-              value = searchQuery,
-              onValueChange = { viewModel.onSearchQueryChange(it) },
-              placeholder = {
-                Text(
-                  text = "Search area, villa, floor, room, or phone...",
-                  fontSize = 14.sp,
-                  color = Slate400
-                )
-              },
-              leadingIcon = {
-                Icon(
-                  imageVector = Icons.Default.Search,
-                  contentDescription = "Search icon",
-                  tint = ZawitcoBlue
-                )
-              },
-              trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                  IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                    Icon(
-                      imageVector = Icons.Default.Clear,
-                      contentDescription = "Clear search",
-                      tint = Color.Black
-                    )
-                  }
-                }
-              },
-              singleLine = true,
-              shape = RoundedCornerShape(16.dp),
-              colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.Black,
-                unfocusedTextColor = Color.Black,
-                focusedBorderColor = ZawitcoBlue,
-                unfocusedBorderColor = Slate200,
-                focusedContainerColor = Color.White,
-                unfocusedContainerColor = Color.White
-              ),
-              modifier = Modifier
-                .fillMaxWidth()
-                .testTag("search_input")
-            )
-
-            // Station Filter Pill if active
-            if (!filterStationName.isNullOrBlank()) {
-              Spacer(modifier = Modifier.height(6.dp))
-              Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFFEFF6FF),
-                border = androidx.compose.foundation.BorderStroke(1.dp, ZawitcoBlue)
+      // HOUSING UNITS DIRECTORY VIEW (Station & Analysis option closed per user request)
+      Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+        ) {
+          // Station Filter Pill if active
+          if (!filterStationName.isNullOrBlank()) {
+            Surface(
+              shape = RoundedCornerShape(8.dp),
+              color = Color(0xFFEFF6FF),
+              border = androidx.compose.foundation.BorderStroke(1.dp, ZawitcoBlue)
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
               ) {
-                Row(
-                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                  verticalAlignment = Alignment.CenterVertically
+                Text(
+                  text = "Filtering: $filterStationName",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color.Black
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                  onClick = { viewModel.setFilterStationName(null) },
+                  modifier = Modifier.size(16.dp)
                 ) {
-                  Text(
-                    text = "Filtering: $filterStationName",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                  )
-                  Spacer(modifier = Modifier.width(4.dp))
-                  IconButton(
-                    onClick = { viewModel.setFilterStationName(null) },
-                    modifier = Modifier.size(16.dp)
-                  ) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear filter", tint = Color.Black, modifier = Modifier.size(12.dp))
-                  }
+                  Icon(Icons.Default.Clear, contentDescription = "Clear filter", tint = Color.Black, modifier = Modifier.size(12.dp))
                 }
               }
             }
+            Spacer(modifier = Modifier.height(6.dp))
+          }
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -543,7 +430,6 @@ fun ZawitcoAccommodationApp(
         }
       }
     }
-  }
 
   // ==========================================
   // DIALOGS & OVERLAYS
@@ -574,16 +460,18 @@ fun ZawitcoAccommodationApp(
     )
   }
 
-  // 3. Bulk Data File Upload Dialog with Auto-Analysis
+  // 3. Bulk Data File Upload & Single Accommodation Import Dialog
   if (showBulkUploadDialog) {
     BulkDataUploadDialog(
       onDismiss = { viewModel.closeBulkUploadDialog() },
       onImportData = { rawText, onComplete ->
         viewModel.importBulkData(rawText, onComplete)
       },
+      onImportSingle = { acc, onComplete ->
+        viewModel.importSingleAccommodation(acc, onComplete)
+      },
       onAnalysisReady = {
         viewModel.closeBulkUploadDialog()
-        viewModel.setMainTab(MainViewTab.STATIONS_ANALYTICS)
       }
     )
   }
@@ -628,15 +516,26 @@ fun ZawitcoAccommodationApp(
     AddEditAccommodationDialog(
       initialItem = editingAccommodation,
       onDismiss = { viewModel.closeAddEditDialog() },
-      onSave = { id, area, villa, floor, room, worker, owner, mapsUrl, lat, lng, img, billingImg, doorImg, notes, whatsapp, stName ->
+      onSave = { id, area, villa, floor, room, totalWorkers, totalCap, activeWorkers, accLoc, storeLoc, storeCode, storeName, wPhone1, wPhone2, oName, oPhone, oBank, oIban, mapsUrl, lat, lng, img, billingImg, doorImg, notes, whatsapp, stName ->
         viewModel.saveAccommodation(
           id = id,
           areaName = area,
           villaNumber = villa,
           floorNumber = floor,
           roomNumber = room,
-          workerPhone = worker,
-          ownerPhone = owner,
+          totalWorkers = totalWorkers,
+          totalCapacity = totalCap,
+          activeWorkers = activeWorkers,
+          accommodationLocationUrl = accLoc,
+          storeLocationUrl = storeLoc,
+          storeCode = storeCode,
+          storeName = storeName,
+          workerPhone = wPhone1,
+          workerPhone2 = wPhone2,
+          ownerName = oName,
+          ownerPhone = oPhone,
+          ownerBankName = oBank,
+          ownerIban = oIban,
           googleMapsUrl = mapsUrl,
           latitude = lat,
           longitude = lng,

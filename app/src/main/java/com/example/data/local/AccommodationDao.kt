@@ -25,7 +25,13 @@ interface AccommodationDao {
        OR floorNumber LIKE '%' || :query || '%'
        OR roomNumber LIKE '%' || :query || '%'
        OR workerPhone LIKE '%' || :query || '%'
+       OR workerPhone2 LIKE '%' || :query || '%'
+       OR ownerName LIKE '%' || :query || '%'
        OR ownerPhone LIKE '%' || :query || '%'
+       OR ownerIban LIKE '%' || :query || '%'
+       OR storeCode LIKE '%' || :query || '%'
+       OR storeName LIKE '%' || :query || '%'
+       OR stationName LIKE '%' || :query || '%'
     ORDER BY createdAt DESC
   """)
   fun searchAccommodations(query: String): Flow<List<Accommodation>>

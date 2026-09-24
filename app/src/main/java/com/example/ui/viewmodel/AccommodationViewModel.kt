@@ -836,21 +836,39 @@ class AccommodationViewModel(
     _selectedAccommodation.value = null
   }
 
+  fun importSingleAccommodation(accommodation: Accommodation, onComplete: () -> Unit) {
+    viewModelScope.launch {
+      repository.insert(accommodation)
+      onComplete()
+    }
+  }
+
   fun saveAccommodation(
     id: Long = 0,
     areaName: String,
     villaNumber: String,
     floorNumber: String,
     roomNumber: String,
-    workerPhone: String,
-    ownerPhone: String,
-    googleMapsUrl: String,
-    latitude: Double?,
-    longitude: Double?,
-    buildingImageUri: String?,
-    billingPictureUri: String?,
-    doorPictureUri: String?,
-    notes: String,
+    totalWorkers: Int = 0,
+    totalCapacity: Int = 0,
+    activeWorkers: Int = 0,
+    accommodationLocationUrl: String = "",
+    storeLocationUrl: String = "",
+    storeCode: String = "",
+    storeName: String = "",
+    workerPhone: String = "",
+    workerPhone2: String = "",
+    ownerName: String = "",
+    ownerPhone: String = "",
+    ownerBankName: String = "",
+    ownerIban: String = "",
+    googleMapsUrl: String = "",
+    latitude: Double? = null,
+    longitude: Double? = null,
+    buildingImageUri: String? = null,
+    billingPictureUri: String? = null,
+    doorPictureUri: String? = null,
+    notes: String = "",
     whatsappGroupUrl: String = "",
     stationName: String = ""
   ) {
@@ -866,9 +884,20 @@ class AccommodationViewModel(
         villaNumber = villaNumber.trim(),
         floorNumber = floorNumber.trim(),
         roomNumber = roomNumber.trim(),
+        totalWorkers = totalWorkers,
+        totalCapacity = totalCapacity,
+        activeWorkers = activeWorkers,
+        accommodationLocationUrl = accommodationLocationUrl.trim().ifBlank { googleMapsUrl.trim() },
+        storeLocationUrl = storeLocationUrl.trim(),
+        storeCode = storeCode.trim(),
+        storeName = storeName.trim(),
         workerPhone = workerPhone.trim(),
+        workerPhone2 = workerPhone2.trim(),
+        ownerName = ownerName.trim(),
         ownerPhone = ownerPhone.trim(),
-        googleMapsUrl = googleMapsUrl.trim(),
+        ownerBankName = ownerBankName.trim(),
+        ownerIban = ownerIban.trim(),
+        googleMapsUrl = googleMapsUrl.trim().ifBlank { accommodationLocationUrl.trim() },
         latitude = latitude,
         longitude = longitude,
         buildingImageUri = buildingImageUri,
@@ -876,7 +905,7 @@ class AccommodationViewModel(
         doorPictureUri = doorPictureUri,
         notes = notes.trim(),
         whatsappGroupUrl = whatsappGroupUrl.trim(),
-        stationName = stationName.trim()
+        stationName = stationName.trim().ifBlank { storeName.trim().ifBlank { storeCode.trim() } }
       )
 
       if (id == 0L) {

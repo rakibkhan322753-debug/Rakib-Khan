@@ -89,8 +89,19 @@ object FirebaseCloudBackupService {
             "villaNumber" to acc.villaNumber,
             "floorNumber" to acc.floorNumber,
             "roomNumber" to acc.roomNumber,
+            "totalWorkers" to acc.totalWorkers,
+            "totalCapacity" to acc.totalCapacity,
+            "activeWorkers" to acc.activeWorkers,
+            "accommodationLocationUrl" to acc.accommodationLocationUrl,
+            "storeLocationUrl" to acc.storeLocationUrl,
+            "storeCode" to acc.storeCode,
+            "storeName" to acc.storeName,
             "workerPhone" to acc.workerPhone,
+            "workerPhone2" to acc.workerPhone2,
+            "ownerName" to acc.ownerName,
             "ownerPhone" to acc.ownerPhone,
+            "ownerBankName" to acc.ownerBankName,
+            "ownerIban" to acc.ownerIban,
             "googleMapsUrl" to acc.googleMapsUrl,
             "latitude" to (acc.latitude ?: 0.0),
             "longitude" to (acc.longitude ?: 0.0),
@@ -242,8 +253,19 @@ object FirebaseCloudBackupService {
             villaNumber = doc.getString("villaNumber") ?: "",
             floorNumber = doc.getString("floorNumber") ?: "",
             roomNumber = doc.getString("roomNumber") ?: "",
+            totalWorkers = doc.getLong("totalWorkers")?.toInt() ?: 0,
+            totalCapacity = doc.getLong("totalCapacity")?.toInt() ?: 0,
+            activeWorkers = doc.getLong("activeWorkers")?.toInt() ?: 0,
+            accommodationLocationUrl = doc.getString("accommodationLocationUrl") ?: "",
+            storeLocationUrl = doc.getString("storeLocationUrl") ?: "",
+            storeCode = doc.getString("storeCode") ?: "",
+            storeName = doc.getString("storeName") ?: "",
             workerPhone = doc.getString("workerPhone") ?: "",
+            workerPhone2 = doc.getString("workerPhone2") ?: "",
+            ownerName = doc.getString("ownerName") ?: "",
             ownerPhone = doc.getString("ownerPhone") ?: "",
+            ownerBankName = doc.getString("ownerBankName") ?: "",
+            ownerIban = doc.getString("ownerIban") ?: "",
             googleMapsUrl = doc.getString("googleMapsUrl") ?: "",
             latitude = doc.getDouble("latitude")?.takeIf { it != 0.0 },
             longitude = doc.getDouble("longitude")?.takeIf { it != 0.0 },
@@ -429,8 +451,19 @@ object FirebaseCloudBackupService {
       obj.put("villaNumber", acc.villaNumber)
       obj.put("floorNumber", acc.floorNumber)
       obj.put("roomNumber", acc.roomNumber)
+      obj.put("totalWorkers", acc.totalWorkers)
+      obj.put("totalCapacity", acc.totalCapacity)
+      obj.put("activeWorkers", acc.activeWorkers)
+      obj.put("accommodationLocationUrl", acc.accommodationLocationUrl)
+      obj.put("storeLocationUrl", acc.storeLocationUrl)
+      obj.put("storeCode", acc.storeCode)
+      obj.put("storeName", acc.storeName)
       obj.put("workerPhone", acc.workerPhone)
+      obj.put("workerPhone2", acc.workerPhone2)
+      obj.put("ownerName", acc.ownerName)
       obj.put("ownerPhone", acc.ownerPhone)
+      obj.put("ownerBankName", acc.ownerBankName)
+      obj.put("ownerIban", acc.ownerIban)
       obj.put("googleMapsUrl", acc.googleMapsUrl)
       obj.put("latitude", acc.latitude ?: JSONObject.NULL)
       obj.put("longitude", acc.longitude ?: JSONObject.NULL)
@@ -534,8 +567,19 @@ object FirebaseCloudBackupService {
               villaNumber = obj.optString("villaNumber", ""),
               floorNumber = obj.optString("floorNumber", ""),
               roomNumber = obj.optString("roomNumber", ""),
+              totalWorkers = obj.optInt("totalWorkers", 0),
+              totalCapacity = obj.optInt("totalCapacity", 0),
+              activeWorkers = obj.optInt("activeWorkers", 0),
+              accommodationLocationUrl = obj.optString("accommodationLocationUrl", ""),
+              storeLocationUrl = obj.optString("storeLocationUrl", ""),
+              storeCode = obj.optString("storeCode", ""),
+              storeName = obj.optString("storeName", ""),
               workerPhone = obj.optString("workerPhone", ""),
+              workerPhone2 = obj.optString("workerPhone2", ""),
+              ownerName = obj.optString("ownerName", ""),
               ownerPhone = obj.optString("ownerPhone", ""),
+              ownerBankName = obj.optString("ownerBankName", ""),
+              ownerIban = obj.optString("ownerIban", ""),
               googleMapsUrl = obj.optString("googleMapsUrl", ""),
               latitude = if (obj.has("latitude") && !obj.isNull("latitude")) obj.optDouble("latitude") else null,
               longitude = if (obj.has("longitude") && !obj.isNull("longitude")) obj.optDouble("longitude") else null,

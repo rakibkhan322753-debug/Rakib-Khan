@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,12 +21,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Button
@@ -29,6 +37,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,8 +55,10 @@ import com.example.ui.theme.DarkGreen
 import com.example.ui.theme.LightGreen
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.ZawitcoBlue
+import com.example.ui.theme.ZawitcoDarkOrange
 import com.example.ui.theme.ZawitcoLightBlue
 import com.example.ui.theme.ZawitcoOrange
 
@@ -56,6 +68,10 @@ private val WhatsAppColor = Color(0xFF25D366)
 fun HeaderBar(
   isAdmin: Boolean,
   currentUser: UserAccount?,
+  isSearchActive: Boolean = false,
+  searchQuery: String = "",
+  onToggleSearch: () -> Unit = {},
+  onSearchQueryChange: (String) -> Unit = {},
   onAdminClick: () -> Unit,
   onWhatsAppClick: () -> Unit,
   onExportExcelClick: () -> Unit,
@@ -87,12 +103,31 @@ fun HeaderBar(
           showSubtext = true
         )
 
-        // Action controls
+        // Action controls on top right
         Row(
           verticalAlignment = Alignment.CenterVertically,
           horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-          // Export Excel Anytime Button
+          // ==========================================
+          // SEARCH ICON ON TOP RIGHT (Requirement 2)
+          // ==========================================
+          IconButton(
+            onClick = onToggleSearch,
+            modifier = Modifier
+              .size(34.dp)
+              .clip(CircleShape)
+              .background(if (isSearchActive) ZawitcoOrange else ZawitcoLightBlue)
+              .testTag("header_search_icon_button")
+          ) {
+            Icon(
+              imageVector = if (isSearchActive) Icons.Default.Clear else Icons.Default.Search,
+              contentDescription = "Search Accommodations",
+              tint = if (isSearchActive) Color.White else ZawitcoBlue,
+              modifier = Modifier.size(19.dp)
+            )
+          }
+
+          // Export Excel Button
           IconButton(
             onClick = onExportExcelClick,
             modifier = Modifier
@@ -109,7 +144,7 @@ fun HeaderBar(
             )
           }
 
-          // Bulk Data File Upload Button
+          // Data Import Button (Google Sheets & Single Housing Import)
           IconButton(
             onClick = onBulkUploadClick,
             modifier = Modifier
@@ -119,8 +154,8 @@ fun HeaderBar(
               .testTag("header_bulk_upload_button")
           ) {
             Icon(
-              imageVector = Icons.Default.CloudUpload,
-              contentDescription = "Bulk Data File Upload",
+              imageVector = Icons.Default.CloudDownload,
+              contentDescription = "Import Data (Google Sheets / Bulk)",
               tint = ZawitcoBlue,
               modifier = Modifier.size(18.dp)
             )
@@ -251,6 +286,63 @@ fun HeaderBar(
               modifier = Modifier.size(17.dp)
             )
           }
+        }
+      }
+
+      // ==========================================
+      // EXPANDABLE SEARCH BAR (Only shows when search icon is clicked!)
+      // ==========================================
+      AnimatedVisibility(
+        visible = isSearchActive,
+        enter = fadeIn() + expandVertically(),
+        exit = fadeOut() + shrinkVertically()
+      ) {
+        Column {
+          Spacer(modifier = Modifier.height(10.dp))
+          OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = {
+              Text(
+                text = "Search by location, villa, store code, worker phone, or owner...",
+                fontSize = 13.sp,
+                color = Slate400
+              )
+            },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search",
+                tint = ZawitcoBlue,
+                modifier = Modifier.size(18.dp)
+              )
+            },
+            trailingIcon = {
+              if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { onSearchQueryChange("") }) {
+                  Icon(
+                    imageVector = Icons.Default.Clear,
+                    contentDescription = "Clear",
+                    tint = Color.Black,
+                    modifier = Modifier.size(18.dp)
+                  )
+                }
+              }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedTextColor = Color.Black,
+              unfocusedTextColor = Color.Black,
+              focusedBorderColor = ZawitcoBlue,
+              unfocusedBorderColor = Slate200,
+              focusedContainerColor = Color(0xFFFAFAFA),
+              unfocusedContainerColor = Color(0xFFFAFAFA)
+            ),
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("header_expandable_search_input")
+          )
         }
       }
     }

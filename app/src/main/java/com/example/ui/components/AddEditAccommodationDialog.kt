@@ -26,9 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.MeetingRoom
-import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -66,6 +64,7 @@ import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.ZawitcoBlue
+import com.example.ui.theme.ZawitcoDarkOrange
 import com.example.ui.theme.ZawitcoLightBlue
 import com.example.ui.theme.ZawitcoOrange
 
@@ -79,8 +78,19 @@ fun AddEditAccommodationDialog(
     villaNumber: String,
     floorNumber: String,
     roomNumber: String,
+    totalWorkers: Int,
+    totalCapacity: Int,
+    activeWorkers: Int,
+    accommodationLocationUrl: String,
+    storeLocationUrl: String,
+    storeCode: String,
+    storeName: String,
     workerPhone: String,
+    workerPhone2: String,
+    ownerName: String,
     ownerPhone: String,
+    ownerBankName: String,
+    ownerIban: String,
     googleMapsUrl: String,
     latitude: Double?,
     longitude: Double?,
@@ -100,50 +110,51 @@ fun AddEditAccommodationDialog(
   var villaNumber by remember { mutableStateOf(initialItem?.villaNumber ?: "") }
   var floorNumber by remember { mutableStateOf(initialItem?.floorNumber ?: "") }
   var roomNumber by remember { mutableStateOf(initialItem?.roomNumber ?: "") }
-  var stationName by remember { mutableStateOf(initialItem?.stationName ?: "") }
+
+  var totalWorkers by remember { mutableStateOf((initialItem?.totalWorkers ?: 0).toString()) }
+  var totalCapacity by remember { mutableStateOf((initialItem?.totalCapacity ?: 0).toString()) }
+  var activeWorkers by remember { mutableStateOf((initialItem?.activeWorkers ?: 0).toString()) }
+
+  var accommodationLocationUrl by remember { mutableStateOf(initialItem?.accommodationLocationUrl ?: initialItem?.googleMapsUrl ?: "") }
+  var storeLocationUrl by remember { mutableStateOf(initialItem?.storeLocationUrl ?: "") }
+  var storeCode by remember { mutableStateOf(initialItem?.storeCode ?: "") }
+  var storeName by remember { mutableStateOf(initialItem?.storeName ?: "") }
+
   var workerPhone by remember { mutableStateOf(initialItem?.workerPhone ?: "") }
+  var workerPhone2 by remember { mutableStateOf(initialItem?.workerPhone2 ?: "") }
+
+  var ownerName by remember { mutableStateOf(initialItem?.ownerName ?: "") }
   var ownerPhone by remember { mutableStateOf(initialItem?.ownerPhone ?: "") }
-  var googleMapsUrl by remember { mutableStateOf(initialItem?.googleMapsUrl ?: "") }
-  var latitudeStr by remember { mutableStateOf(initialItem?.latitude?.toString() ?: "") }
-  var longitudeStr by remember { mutableStateOf(initialItem?.longitude?.toString() ?: "") }
-  var billingPictureUri by remember {
-    mutableStateOf(initialItem?.billingPictureUri ?: initialItem?.buildingImageUri)
-  }
+  var ownerBankName by remember { mutableStateOf(initialItem?.ownerBankName ?: "") }
+  var ownerIban by remember { mutableStateOf(initialItem?.ownerIban ?: "") }
+
+  var billingPictureUri by remember { mutableStateOf(initialItem?.billingPictureUri ?: initialItem?.buildingImageUri) }
   var doorPictureUri by remember { mutableStateOf(initialItem?.doorPictureUri) }
+
   var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
   var whatsappGroupUrl by remember { mutableStateOf(initialItem?.whatsappGroupUrl ?: "") }
 
-  var areaNameError by remember { mutableStateOf(false) }
+  var errorMessage by remember { mutableStateOf<String?>(null) }
 
-  // Activity Result Launchers for Billing Picture and Door Picture
-  val billingPhotoPickerLauncher = rememberLauncherForActivityResult(
+  val billingPhotoPicker = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.PickVisualMedia()
-  ) { selectedUri: Uri? ->
-    if (selectedUri != null) {
-      val savedPath = onSaveImageToStorage(selectedUri)
-      billingPictureUri = savedPath ?: selectedUri.toString()
+  ) { uri ->
+    if (uri != null) {
+      val savedPath = onSaveImageToStorage(uri)
+      billingPictureUri = savedPath ?: uri.toString()
     }
   }
 
-  val doorPhotoPickerLauncher = rememberLauncherForActivityResult(
+  val doorPhotoPicker = rememberLauncherForActivityResult(
     contract = ActivityResultContracts.PickVisualMedia()
-  ) { selectedUri: Uri? ->
-    if (selectedUri != null) {
-      val savedPath = onSaveImageToStorage(selectedUri)
-      doorPictureUri = savedPath ?: selectedUri.toString()
+  ) { uri ->
+    if (uri != null) {
+      val savedPath = onSaveImageToStorage(uri)
+      doorPictureUri = savedPath ?: uri.toString()
     }
   }
 
-  val defaultTextFieldColors = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Color.Black,
-    unfocusedTextColor = Color.Black,
-    focusedBorderColor = ZawitcoBlue,
-    unfocusedBorderColor = Slate200,
-    focusedLabelColor = ZawitcoBlue,
-    unfocusedLabelColor = Color.Black,
-    focusedContainerColor = Color.White,
-    unfocusedContainerColor = Color.White
-  )
+  val isEditing = initialItem != null
 
   Dialog(
     onDismissRequest = onDismiss,
@@ -152,10 +163,10 @@ fun AddEditAccommodationDialog(
     Surface(
       modifier = modifier
         .fillMaxWidth(0.95f)
-        .fillMaxHeight(0.92f)
+        .fillMaxHeight(0.94f)
         .clip(RoundedCornerShape(24.dp)),
-      color = Color.White,
-      tonalElevation = 8.dp
+      color = MaterialTheme.colorScheme.surface,
+      tonalElevation = 6.dp
     ) {
       Column(
         modifier = Modifier
@@ -163,513 +174,429 @@ fun AddEditAccommodationDialog(
           .verticalScroll(rememberScrollState())
           .padding(20.dp)
       ) {
-        // Dialog Header with Zawitco Brand
+        // Header
         Row(
           modifier = Modifier.fillMaxWidth(),
           horizontalArrangement = Arrangement.SpaceBetween,
           verticalAlignment = Alignment.CenterVertically
         ) {
-          ZawitcoCompanyLogo(height = 36.dp, showSubtext = false)
-
-          Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
+          Column {
             Text(
-              text = if (initialItem == null) "Add Accommodation" else "Edit Accommodation",
-              fontSize = 19.sp,
+              text = if (isEditing) "Edit Accommodation" else "Add New Housing Unit",
+              fontSize = 20.sp,
               fontWeight = FontWeight.Bold,
-              color = Color.Black
+              color = ZawitcoBlue
             )
             Text(
-              text = "Zawitco property & photos record",
+              text = "Full specs & owner details",
               fontSize = 12.sp,
-              color = Color.Black
+              color = Slate600
             )
           }
 
           IconButton(
             onClick = onDismiss,
-            modifier = Modifier.testTag("close_add_edit_dialog")
+            modifier = Modifier.size(36.dp).background(Slate100, CircleShape)
           ) {
-            Icon(
-              imageVector = Icons.Default.Close,
-              contentDescription = "Close",
-              tint = Color.Black
-            )
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Black, modifier = Modifier.size(18.dp))
           }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 2 MANDATORY PHOTOS PICKERS
+        Text(
+          text = "2 MANDATORY PICTURES",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = Slate600,
+          letterSpacing = 0.8.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+          // Billing Picture
+          Box(
+            modifier = Modifier
+              .weight(1f)
+              .height(120.dp)
+              .clip(RoundedCornerShape(12.dp))
+              .background(Color(0xFFFFF7ED))
+              .border(1.dp, Color(0xFFFFEDD5), RoundedCornerShape(12.dp))
+              .clickable {
+                billingPhotoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+              },
+            contentAlignment = Alignment.Center
+          ) {
+            if (!billingPictureUri.isNullOrBlank()) {
+              AsyncImage(
+                model = billingPictureUri,
+                contentDescription = "Billing Photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth()
+              )
+            } else {
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.Description, contentDescription = null, tint = ZawitcoOrange, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("1. Billing Picture", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ZawitcoOrange)
+                Text("Tap to upload", fontSize = 9.sp, color = Slate400)
+              }
+            }
+          }
+
+          // Door Picture
+          Box(
+            modifier = Modifier
+              .weight(1f)
+              .height(120.dp)
+              .clip(RoundedCornerShape(12.dp))
+              .background(ZawitcoLightBlue)
+              .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+              .clickable {
+                doorPhotoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+              },
+            contentAlignment = Alignment.Center
+          ) {
+            if (!doorPictureUri.isNullOrBlank()) {
+              AsyncImage(
+                model = doorPictureUri,
+                contentDescription = "Door Photo",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth()
+              )
+            } else {
+              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Default.MeetingRoom, contentDescription = null, tint = ZawitcoBlue, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("2. Door Picture", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ZawitcoBlue)
+                Text("Tap to upload", fontSize = 9.sp, color = Slate400)
+              }
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Basic Info
+        OutlinedTextField(
+          value = areaName,
+          onValueChange = { areaName = it },
+          label = { Text("Area / District / Location Name *") },
+          placeholder = { Text("e.g. Al Olaya District, Riyadh") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          OutlinedTextField(
+            value = villaNumber,
+            onValueChange = { villaNumber = it },
+            label = { Text("Villa Number") },
+            placeholder = { Text("14B") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+          OutlinedTextField(
+            value = floorNumber,
+            onValueChange = { floorNumber = it },
+            label = { Text("Floor") },
+            placeholder = { Text("2nd Floor") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+          OutlinedTextField(
+            value = roomNumber,
+            onValueChange = { roomNumber = it },
+            label = { Text("Room(s)") },
+            placeholder = { Text("201-203") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Worker Counts
+        Text(
+          text = "WORKER OCCUPANCY & CAPACITY",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = ZawitcoDarkOrange,
+          letterSpacing = 0.8.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          OutlinedTextField(
+            value = activeWorkers,
+            onValueChange = { activeWorkers = it.filter { c -> c.isDigit() } },
+            label = { Text("Active Workers") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+          OutlinedTextField(
+            value = totalWorkers,
+            onValueChange = { totalWorkers = it.filter { c -> c.isDigit() } },
+            label = { Text("Total Workers") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+          OutlinedTextField(
+            value = totalCapacity,
+            onValueChange = { totalCapacity = it.filter { c -> c.isDigit() } },
+            label = { Text("Total Capacity") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Worker Phones
+        Text(
+          text = "WORKER PHONE NUMBERS",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = Slate600,
+          letterSpacing = 0.8.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          OutlinedTextField(
+            value = workerPhone,
+            onValueChange = { workerPhone = it },
+            label = { Text("Worker Phone 1 (Primary)") },
+            placeholder = { Text("+966 50...") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+          OutlinedTextField(
+            value = workerPhone2,
+            onValueChange = { workerPhone2 = it },
+            label = { Text("Worker Phone 2 (Secondary)") },
+            placeholder = { Text("+966 55...") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Store & Location Details
+        Text(
+          text = "STORE & MAP LOCATIONS",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = Slate600,
+          letterSpacing = 0.8.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        OutlinedTextField(
+          value = accommodationLocationUrl,
+          onValueChange = { accommodationLocationUrl = it },
+          label = { Text("Accommodation Google Maps URL") },
+          placeholder = { Text("https://maps.google.com/?q=...") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          OutlinedTextField(
+            value = storeCode,
+            onValueChange = { storeCode = it },
+            label = { Text("Store Code") },
+            placeholder = { Text("ST-101") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+          OutlinedTextField(
+            value = storeName,
+            onValueChange = { storeName = it },
+            label = { Text("Store Name") },
+            placeholder = { Text("Central Store") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+          value = storeLocationUrl,
+          onValueChange = { storeLocationUrl = it },
+          label = { Text("Store Location Google Maps URL") },
+          placeholder = { Text("https://maps.google.com/?q=...") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // House Owner Details
+        Text(
+          text = "HOUSE OWNER & BANK ACCOUNT DETAILS",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = Color(0xFF0F766E),
+          letterSpacing = 0.8.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+          OutlinedTextField(
+            value = ownerName,
+            onValueChange = { ownerName = it },
+            label = { Text("Owner Name") },
+            placeholder = { Text("Sheikh Abdullah...") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+          OutlinedTextField(
+            value = ownerPhone,
+            onValueChange = { ownerPhone = it },
+            label = { Text("Owner Phone") },
+            placeholder = { Text("+966 55...") },
+            singleLine = true,
+            modifier = Modifier.weight(1f),
+            shape = RoundedCornerShape(10.dp)
+          )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+          value = ownerBankName,
+          onValueChange = { ownerBankName = it },
+          label = { Text("Bank Name / Account Details") },
+          placeholder = { Text("Al Rajhi Bank / SNB") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+          value = ownerIban,
+          onValueChange = { ownerIban = it },
+          label = { Text("House Owner IBAN Number") },
+          placeholder = { Text("SA4480000456608010123456") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Notes & WhatsApp
+        OutlinedTextField(
+          value = notes,
+          onValueChange = { notes = it },
+          label = { Text("Property Notes") },
+          placeholder = { Text("Additional notes...") },
+          modifier = Modifier.fillMaxWidth(),
+          minLines = 2,
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+          value = whatsappGroupUrl,
+          onValueChange = { whatsappGroupUrl = it },
+          label = { Text("WhatsApp Group URL (Optional)") },
+          placeholder = { Text("https://chat.whatsapp.com/...") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        if (errorMessage != null) {
+          Spacer(modifier = Modifier.height(8.dp))
+          Text(text = errorMessage!!, color = MaterialTheme.colorScheme.error, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ==========================================
-        // 2 REQUIRED PICTURES (1. Billing Picture, 2. Door Picture)
-        // ==========================================
-        Text(
-          text = "Required Accommodation Photos (2 Pictures)",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.Bold,
-          color = Color.Black
-        )
-        Text(
-          text = "Every accommodation record requires 1. Billing Picture and 2. Door Picture",
-          fontSize = 12.sp,
-          color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          // 1. BILLING PICTURE UPLOAD CARD
-          Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(
-                imageVector = Icons.Default.Description,
-                contentDescription = null,
-                tint = ZawitcoOrange,
-                modifier = Modifier.size(16.dp)
-              )
-              Spacer(modifier = Modifier.width(4.dp))
-              Text(
-                text = "1. Billing Picture",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-              )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-
-            if (!billingPictureUri.isNullOrBlank()) {
-              Box(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(130.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
-              ) {
-                AsyncImage(
-                  model = billingPictureUri,
-                  contentDescription = "Billing Photo",
-                  contentScale = ContentScale.Crop,
-                  modifier = Modifier.fillMaxWidth()
-                )
-                IconButton(
-                  onClick = { billingPictureUri = null },
-                  modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .size(28.dp)
-                    .testTag("remove_billing_picture_button")
-                ) {
-                  Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Remove billing picture",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                  )
-                }
-              }
-            } else {
-              Surface(
-                onClick = {
-                  billingPhotoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                  )
-                },
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(130.dp)
-                  .testTag("add_billing_picture_button"),
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFFFFF7ED),
-                border = BorderStroke(1.5.dp, ZawitcoOrange.copy(alpha = 0.5f))
-              ) {
-                Column(
-                  modifier = Modifier.padding(8.dp),
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.Center
-                ) {
-                  Icon(
-                    imageVector = Icons.Outlined.AddAPhoto,
-                    contentDescription = null,
-                    tint = ZawitcoOrange,
-                    modifier = Modifier.size(28.dp)
-                  )
-                  Spacer(modifier = Modifier.height(6.dp))
-                  Text(
-                    text = "Upload Billing Photo",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                  )
-                  Text(
-                    text = "Invoice / Bill paper",
-                    fontSize = 10.sp,
-                    color = Color.Black
-                  )
-                }
-              }
-            }
+        // Action Buttons
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+          Button(
+            onClick = onDismiss,
+            colors = ButtonDefaults.buttonColors(containerColor = Slate100, contentColor = Color.Black),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.weight(1f).height(46.dp)
+          ) {
+            Text("Cancel", fontWeight = FontWeight.Bold)
           }
 
-          // 2. DOOR PICTURE UPLOAD CARD
-          Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-              Icon(
-                imageVector = Icons.Default.MeetingRoom,
-                contentDescription = null,
-                tint = ZawitcoBlue,
-                modifier = Modifier.size(16.dp)
-              )
-              Spacer(modifier = Modifier.width(4.dp))
-              Text(
-                text = "2. Door Picture",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black
-              )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-
-            if (!doorPictureUri.isNullOrBlank()) {
-              Box(
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(130.dp)
-                  .clip(RoundedCornerShape(12.dp))
-                  .border(1.dp, Slate200, RoundedCornerShape(12.dp))
-              ) {
-                AsyncImage(
-                  model = doorPictureUri,
-                  contentDescription = "Door Photo",
-                  contentScale = ContentScale.Crop,
-                  modifier = Modifier.fillMaxWidth()
-                )
-                IconButton(
-                  onClick = { doorPictureUri = null },
-                  modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .size(28.dp)
-                    .testTag("remove_door_picture_button")
-                ) {
-                  Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Remove door picture",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                  )
-                }
+          Button(
+            onClick = {
+              if (areaName.isBlank()) {
+                errorMessage = "Area / Location name is required."
+                return@Button
               }
-            } else {
-              Surface(
-                onClick = {
-                  doorPhotoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                  )
-                },
-                modifier = Modifier
-                  .fillMaxWidth()
-                  .height(130.dp)
-                  .testTag("add_door_picture_button"),
-                shape = RoundedCornerShape(12.dp),
-                color = ZawitcoLightBlue,
-                border = BorderStroke(1.5.dp, ZawitcoBlue.copy(alpha = 0.5f))
-              ) {
-                Column(
-                  modifier = Modifier.padding(8.dp),
-                  horizontalAlignment = Alignment.CenterHorizontally,
-                  verticalArrangement = Arrangement.Center
-                ) {
-                  Icon(
-                    imageVector = Icons.Outlined.PhotoCamera,
-                    contentDescription = null,
-                    tint = ZawitcoBlue,
-                    modifier = Modifier.size(28.dp)
-                  )
-                  Spacer(modifier = Modifier.height(6.dp))
-                  Text(
-                    text = "Upload Door Photo",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                  )
-                  Text(
-                    text = "Room/Villa entrance",
-                    fontSize = 10.sp,
-                    color = Color.Black
-                  )
-                }
-              }
-            }
-          }
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
-        // ==========================================
-        // TEXT DATA FIELDS
-        // ==========================================
-        Text(
-          text = "Accommodation Information",
-          fontSize = 14.sp,
-          fontWeight = FontWeight.Bold,
-          color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Area Name & Villa Number
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          OutlinedTextField(
-            value = areaName,
-            onValueChange = {
-              areaName = it
-              if (it.isNotBlank()) areaNameError = false
+              onSave(
+                initialItem?.id ?: 0L,
+                areaName.trim(),
+                villaNumber.trim(),
+                floorNumber.trim(),
+                roomNumber.trim(),
+                totalWorkers.toIntOrNull() ?: 0,
+                totalCapacity.toIntOrNull() ?: 0,
+                activeWorkers.toIntOrNull() ?: 0,
+                accommodationLocationUrl.trim(),
+                storeLocationUrl.trim(),
+                storeCode.trim(),
+                storeName.trim(),
+                workerPhone.trim(),
+                workerPhone2.trim(),
+                ownerName.trim(),
+                ownerPhone.trim(),
+                ownerBankName.trim(),
+                ownerIban.trim(),
+                accommodationLocationUrl.trim(),
+                null,
+                null,
+                billingPictureUri,
+                billingPictureUri,
+                doorPictureUri,
+                notes.trim(),
+                whatsappGroupUrl.trim(),
+                storeName.trim().ifBlank { storeCode.trim() }
+              )
             },
-            label = { Text("Area Name *", color = Color.Black) },
-            placeholder = { Text("e.g. Al Olaya District", color = Slate400) },
-            isError = areaNameError,
-            supportingText = if (areaNameError) {
-              { Text("Area Name is required", color = Color.Red) }
-            } else null,
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1.3f)
-              .testTag("input_area_name")
-          )
-
-          OutlinedTextField(
-            value = villaNumber,
-            onValueChange = { villaNumber = it },
-            label = { Text("Villa Number", color = Color.Black) },
-            placeholder = { Text("e.g. 14B", color = Slate400) },
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("input_villa_number")
-          )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Floor Number, Room Number & Station Name
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          OutlinedTextField(
-            value = floorNumber,
-            onValueChange = { floorNumber = it },
-            label = { Text("Floor Number", color = Color.Black) },
-            placeholder = { Text("e.g. 2nd Floor", color = Slate400) },
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("input_floor_number")
-          )
-
-          OutlinedTextField(
-            value = roomNumber,
-            onValueChange = { roomNumber = it },
-            label = { Text("Room Number(s)", color = Color.Black) },
-            placeholder = { Text("e.g. 201, 202", color = Slate400) },
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1.2f)
-              .testTag("input_room_number")
-          )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Assigned Station Hub
-        OutlinedTextField(
-          value = stationName,
-          onValueChange = { stationName = it },
-          label = { Text("Assigned Station Hub", color = Color.Black) },
-          placeholder = { Text("e.g. Riyadh Central Hub, Dammam Hub", color = Slate400) },
-          leadingIcon = {
-            Icon(Icons.Default.Hub, contentDescription = null, tint = ZawitcoBlue)
-          },
-          singleLine = true,
-          colors = defaultTextFieldColors,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("input_station_name")
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Coordinates: Latitude & Longitude
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          OutlinedTextField(
-            value = latitudeStr,
-            onValueChange = { latitudeStr = it },
-            label = { Text("Latitude", color = Color.Black) },
-            placeholder = { Text("24.7136", color = Slate400) },
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("input_latitude")
-          )
-
-          OutlinedTextField(
-            value = longitudeStr,
-            onValueChange = { longitudeStr = it },
-            label = { Text("Longitude", color = Color.Black) },
-            placeholder = { Text("46.6753", color = Slate400) },
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("input_longitude")
-          )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Worker's Phone & Owner's Phone
-        Row(
-          modifier = Modifier.fillMaxWidth(),
-          horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-          OutlinedTextField(
-            value = workerPhone,
-            onValueChange = { workerPhone = it },
-            label = { Text("Worker's Phone", color = Color.Black) },
-            placeholder = { Text("+966 5...", color = Slate400) },
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("input_worker_phone")
-          )
-
-          OutlinedTextField(
-            value = ownerPhone,
-            onValueChange = { ownerPhone = it },
-            label = { Text("Owner's Phone", color = Color.Black) },
-            placeholder = { Text("+966 5...", color = Slate400) },
-            singleLine = true,
-            colors = defaultTextFieldColors,
-            modifier = Modifier
-              .weight(1f)
-              .testTag("input_owner_phone")
-          )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // WhatsApp Group Link input
-        OutlinedTextField(
-          value = whatsappGroupUrl,
-          onValueChange = { whatsappGroupUrl = it },
-          label = { Text("WhatsApp Group / Contact Link", color = Color.Black) },
-          placeholder = { Text("https://chat.whatsapp.com/... or https://wa.me/...", color = Slate400) },
-          singleLine = true,
-          colors = defaultTextFieldColors,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("input_whatsapp_group_url")
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Google Maps URL (Direct link if available)
-        OutlinedTextField(
-          value = googleMapsUrl,
-          onValueChange = { googleMapsUrl = it },
-          label = { Text("Google Maps URL (Optional Link)", color = Color.Black) },
-          placeholder = { Text("https://maps.google.com/...", color = Slate400) },
-          singleLine = true,
-          colors = defaultTextFieldColors,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("input_maps_url")
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Notes & Amenities
-        OutlinedTextField(
-          value = notes,
-          onValueChange = { notes = it },
-          label = { Text("Accommodation Notes & Amenities", color = Color.Black) },
-          placeholder = { Text("e.g. WiFi included, 3 ACs, near supermarket...", color = Slate400) },
-          maxLines = 3,
-          colors = defaultTextFieldColors,
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("input_notes")
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Save button
-        Button(
-          onClick = {
-            if (areaName.isBlank()) {
-              areaNameError = true
-              return@Button
-            }
-
-            val lat = latitudeStr.toDoubleOrNull() ?: initialItem?.latitude
-            val lng = longitudeStr.toDoubleOrNull() ?: initialItem?.longitude
-
-            onSave(
-              initialItem?.id ?: 0L,
-              areaName,
-              villaNumber,
-              floorNumber,
-              roomNumber,
-              workerPhone,
-              ownerPhone,
-              googleMapsUrl,
-              lat,
-              lng,
-              billingPictureUri ?: initialItem?.buildingImageUri,
-              billingPictureUri,
-              doorPictureUri,
-              notes,
-              whatsappGroupUrl,
-              stationName
-            )
-          },
-          colors = ButtonDefaults.buttonColors(
-            containerColor = ZawitcoBlue,
-            contentColor = Color.White
-          ),
-          shape = RoundedCornerShape(14.dp),
-          modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .testTag("save_accommodation_button")
-        ) {
-          Icon(
-            imageVector = Icons.Outlined.Check,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp)
-          )
-          Spacer(modifier = Modifier.width(8.dp))
-          Text(
-            text = "Save Accommodation",
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
-          )
+            colors = ButtonDefaults.buttonColors(containerColor = ZawitcoBlue, contentColor = Color.White),
+            shape = RoundedCornerShape(10.dp),
+            modifier = Modifier.weight(2f).height(46.dp)
+          ) {
+            Icon(Icons.Outlined.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("Save Housing Unit", fontWeight = FontWeight.Bold)
+          }
         }
       }
     }

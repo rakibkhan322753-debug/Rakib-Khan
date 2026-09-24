@@ -1,5 +1,7 @@
 package com.example.ui.components
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,10 +20,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AccountBalance
+import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Groups
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MeetingRoom
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Home
@@ -46,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -57,7 +64,9 @@ import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.ZawitcoBlue
+import com.example.ui.theme.ZawitcoDarkOrange
 import com.example.ui.theme.ZawitcoLightBlue
+import com.example.ui.theme.ZawitcoLightOrange
 import com.example.ui.theme.ZawitcoOrange
 
 @Composable
@@ -71,6 +80,7 @@ fun AccommodationCard(
   onDelete: () -> Unit,
   modifier: Modifier = Modifier
 ) {
+  val context = LocalContext.current
   var showDeleteConfirm by remember { mutableStateOf(false) }
 
   val billingImg = accommodation.billingPictureUri ?: accommodation.buildingImageUri
@@ -107,19 +117,19 @@ fun AccommodationCard(
     modifier = modifier
       .fillMaxWidth()
       .testTag("accommodation_card_${accommodation.id}"),
-    shape = RoundedCornerShape(18.dp),
-    colors = CardDefaults.cardColors(
-      containerColor = MaterialTheme.colorScheme.surface
-    ),
-    border = BorderStroke(1.dp, if (hasPendingAlert) Color(0xFFFDBA74) else Slate200),
-    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    shape = RoundedCornerShape(16.dp),
+    colors = CardDefaults.cardColors(containerColor = Color.White),
+    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    border = BorderStroke(1.dp, Slate200)
   ) {
     Column(
       modifier = Modifier
         .fillMaxWidth()
         .padding(16.dp)
     ) {
-      // Top row: Area Name, Station Badge, Notification Badge, and Action buttons
+      // ==========================================
+      // HEADER: Accommodation Name (BLUE) & Admin Controls
+      // ==========================================
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -131,7 +141,7 @@ fun AccommodationCard(
         ) {
           Box(
             modifier = Modifier
-              .size(36.dp)
+              .size(40.dp)
               .clip(CircleShape)
               .background(ZawitcoLightBlue),
             contentAlignment = Alignment.Center
@@ -140,34 +150,48 @@ fun AccommodationCard(
               imageVector = Icons.Outlined.Home,
               contentDescription = null,
               tint = ZawitcoBlue,
-              modifier = Modifier.size(20.dp)
+              modifier = Modifier.size(22.dp)
             )
           }
           Spacer(modifier = Modifier.width(10.dp))
           Column {
+            // Accommodation Name: BLUE FONT COLOR
             Text(
               text = accommodation.areaName,
-              fontSize = 17.sp,
+              fontSize = 18.sp,
               fontWeight = FontWeight.Bold,
               color = ZawitcoBlue,
               maxLines = 1,
               overflow = TextOverflow.Ellipsis
             )
 
-            if (accommodation.stationName.isNotBlank()) {
-              Row(verticalAlignment = Alignment.CenterVertically) {
+            // Store code & location font color: ORANGE
+            val storeDisplay = when {
+              accommodation.storeCode.isNotBlank() && accommodation.storeName.isNotBlank() ->
+                "Store: ${accommodation.storeName} (${accommodation.storeCode})"
+              accommodation.storeCode.isNotBlank() -> "Store Code: ${accommodation.storeCode}"
+              accommodation.storeName.isNotBlank() -> "Store: ${accommodation.storeName}"
+              accommodation.stationName.isNotBlank() -> "Store/Hub: ${accommodation.stationName}"
+              else -> ""
+            }
+
+            if (storeDisplay.isNotBlank()) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 2.dp)
+              ) {
                 Icon(
-                  imageVector = Icons.Default.Hub,
+                  imageVector = Icons.Default.Storefront,
                   contentDescription = null,
-                  tint = ZawitcoBlue,
-                  modifier = Modifier.size(11.dp)
+                  tint = ZawitcoDarkOrange,
+                  modifier = Modifier.size(13.dp)
                 )
-                Spacer(modifier = Modifier.width(3.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                  text = "Station: ${accommodation.stationName}",
-                  fontSize = 11.sp,
-                  fontWeight = FontWeight.SemiBold,
-                  color = Color.Black
+                  text = storeDisplay,
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = ZawitcoDarkOrange
                 )
               }
             }
@@ -181,7 +205,7 @@ fun AccommodationCard(
                 Icon(
                   imageVector = Icons.Default.NotificationsActive,
                   contentDescription = "Active Notifications",
-                  tint = Color(0xFFEA580C),
+                  tint = Color(0xFFDC2626),
                   modifier = Modifier.size(13.dp)
                 )
                 Spacer(modifier = Modifier.width(3.dp))
@@ -192,7 +216,7 @@ fun AccommodationCard(
                   ).joinToString(" • "),
                   fontSize = 11.sp,
                   fontWeight = FontWeight.Bold,
-                  color = Color(0xFFEA580C)
+                  color = Color(0xFFDC2626)
                 )
               }
             }
@@ -206,7 +230,15 @@ fun AccommodationCard(
                 .padding(end = 4.dp)
                 .size(28.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFE8F8F0)),
+                .background(Color(0xFFE8F8F0))
+                .clickable {
+                  try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(accommodation.whatsappGroupUrl))
+                    context.startActivity(intent)
+                  } catch (e: Exception) {
+                    // Ignore
+                  }
+                },
               contentAlignment = Alignment.Center
             ) {
               Text(
@@ -253,7 +285,7 @@ fun AccommodationCard(
       // ==========================================
       // 2 PICTURES PREVIEW (1. Billing Picture, 2. Door Picture)
       // ==========================================
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(10.dp))
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -262,7 +294,7 @@ fun AccommodationCard(
         Box(
           modifier = Modifier
             .weight(1f)
-            .height(100.dp)
+            .height(95.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(Color(0xFFFFF7ED))
             .border(1.dp, Slate200, RoundedCornerShape(10.dp)),
@@ -281,7 +313,7 @@ fun AccommodationCard(
                 imageVector = Icons.Default.Description,
                 contentDescription = null,
                 tint = ZawitcoOrange,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
               )
               Spacer(modifier = Modifier.height(2.dp))
               Text(
@@ -298,7 +330,7 @@ fun AccommodationCard(
         Box(
           modifier = Modifier
             .weight(1f)
-            .height(100.dp)
+            .height(95.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(ZawitcoLightBlue)
             .border(1.dp, Slate200, RoundedCornerShape(10.dp)),
@@ -317,7 +349,7 @@ fun AccommodationCard(
                 imageVector = Icons.Default.MeetingRoom,
                 contentDescription = null,
                 tint = ZawitcoBlue,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier.size(20.dp)
               )
               Spacer(modifier = Modifier.height(2.dp))
               Text(
@@ -333,64 +365,127 @@ fun AccommodationCard(
 
       Spacer(modifier = Modifier.height(10.dp))
 
-      // Villa Info
-      Text(
-        text = if (accommodation.villaNumber.isNotBlank()) "Villa: #${accommodation.villaNumber}" else "Villa: N/A",
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = Color.Black
-      )
+      // ==========================================
+      // VILLA DETAILS (FONT SET ORANGE COLOR)
+      // ==========================================
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFFFFF7ED),
+        border = BorderStroke(1.dp, Color(0xFFFFEDD5))
+      ) {
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+              imageVector = Icons.Outlined.Home,
+              contentDescription = null,
+              tint = ZawitcoDarkOrange,
+              modifier = Modifier.size(15.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+              text = if (accommodation.villaNumber.isNotBlank()) "Villa: #${accommodation.villaNumber}" else "Villa: N/A",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Bold,
+              color = ZawitcoDarkOrange
+            )
+          }
+
+          Text(
+            text = "Floor: ${accommodation.floorNumber.ifBlank { "N/A" }}",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold,
+            color = ZawitcoDarkOrange
+          )
+
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+              imageVector = Icons.Outlined.MeetingRoom,
+              contentDescription = null,
+              tint = ZawitcoDarkOrange,
+              modifier = Modifier.size(14.dp)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+              text = "Room: ${accommodation.roomNumber.ifBlank { "N/A" }}",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              color = ZawitcoDarkOrange
+            )
+          }
+        }
+      }
 
       Spacer(modifier = Modifier.height(8.dp))
 
-      // Floor & Room info badges
-      Row(
-        modifier = Modifier
-          .fillMaxWidth()
-          .clip(RoundedCornerShape(10.dp))
-          .background(Slate100)
-          .padding(horizontal = 10.dp, vertical = 7.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+      // ==========================================
+      // WORKERS NUMBER & CAPACITY (FONT SET ORANGE COLOR)
+      // ==========================================
+      Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFFFFF1EB),
+        border = BorderStroke(1.dp, Color(0xFFFFDFC9))
       ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Text(
-            text = "Floor: ",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-          )
-          Text(
-            text = accommodation.floorNumber.ifBlank { "N/A" },
-            fontSize = 12.sp,
-            color = Color.Black
-          )
-        }
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+          horizontalArrangement = Arrangement.SpaceBetween,
+          verticalAlignment = Alignment.CenterVertically
+        ) {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+              imageVector = Icons.Default.Groups,
+              contentDescription = null,
+              tint = ZawitcoDarkOrange,
+              modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+              text = "Active Workers: ",
+              fontSize = 12.sp,
+              fontWeight = FontWeight.Bold,
+              color = ZawitcoDarkOrange
+            )
+            Text(
+              text = "${accommodation.activeWorkers}",
+              fontSize = 13.sp,
+              fontWeight = FontWeight.Black,
+              color = ZawitcoDarkOrange
+            )
+          }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(
-            imageVector = Icons.Outlined.MeetingRoom,
-            contentDescription = null,
-            tint = Color.Black,
-            modifier = Modifier.size(15.dp)
-          )
-          Spacer(modifier = Modifier.width(3.dp))
           Text(
-            text = "Room: ",
+            text = "Total: ${accommodation.totalWorkers}",
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = ZawitcoDarkOrange
           )
+
           Text(
-            text = accommodation.roomNumber.ifBlank { "N/A" },
+            text = "Capacity: ${accommodation.totalCapacity}",
             fontSize = 12.sp,
-            color = Color.Black
+            fontWeight = FontWeight.Bold,
+            color = ZawitcoDarkOrange
           )
         }
       }
 
-      // Contact quick preview
-      if (accommodation.workerPhone.isNotBlank() || accommodation.ownerPhone.isNotBlank()) {
-        Spacer(modifier = Modifier.height(8.dp))
+      // ==========================================
+      // WORKER PHONES 1 & 2 (FONT SET ORANGE COLOR)
+      // ==========================================
+      val wPhone1 = accommodation.workerPhone
+      val wPhone2 = accommodation.workerPhone2
+
+      if (wPhone1.isNotBlank() || wPhone2.isNotBlank()) {
+        Spacer(modifier = Modifier.height(6.dp))
         Row(
           verticalAlignment = Alignment.CenterVertically,
           modifier = Modifier.padding(horizontal = 4.dp)
@@ -398,16 +493,132 @@ fun AccommodationCard(
           Icon(
             imageVector = Icons.Outlined.Phone,
             contentDescription = null,
-            tint = Color.Black,
+            tint = ZawitcoDarkOrange,
             modifier = Modifier.size(13.dp)
           )
           Spacer(modifier = Modifier.width(4.dp))
           Text(
             text = listOfNotNull(
-              accommodation.workerPhone.takeIf { it.isNotBlank() }?.let { "Worker: $it" },
-              accommodation.ownerPhone.takeIf { it.isNotBlank() }?.let { "Owner: $it" }
+              wPhone1.takeIf { it.isNotBlank() }?.let { "Worker 1: $it" },
+              wPhone2.takeIf { it.isNotBlank() }?.let { "Worker 2: $it" }
             ).joinToString("  •  "),
             fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = ZawitcoDarkOrange,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+          )
+        }
+      }
+
+      // ==========================================
+      // MAP QUICK ACCESS LINKS (Accommodation & Store)
+      // ==========================================
+      val accMapLink = accommodation.accommodationLocationUrl.ifBlank { accommodation.googleMapsUrl }
+      val storeMapLink = accommodation.storeLocationUrl
+
+      if (accMapLink.isNotBlank() || storeMapLink.isNotBlank()) {
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+          modifier = Modifier.fillMaxWidth(),
+          horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+          if (accMapLink.isNotBlank()) {
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFE0F2FE))
+                .clickable {
+                  try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(accMapLink))
+                    context.startActivity(intent)
+                  } catch (e: Exception) {
+                    // Ignore
+                  }
+                }
+                .padding(vertical = 6.dp, horizontal = 8.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                  imageVector = Icons.Default.LocationOn,
+                  contentDescription = null,
+                  tint = ZawitcoBlue,
+                  modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  text = "Housing Map",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = ZawitcoBlue
+                )
+              }
+            }
+          }
+
+          if (storeMapLink.isNotBlank()) {
+            Box(
+              modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color(0xFFFFF7ED))
+                .clickable {
+                  try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(storeMapLink))
+                    context.startActivity(intent)
+                  } catch (e: Exception) {
+                    // Ignore
+                  }
+                }
+                .padding(vertical = 6.dp, horizontal = 8.dp),
+              contentAlignment = Alignment.Center
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                  imageVector = Icons.Default.Storefront,
+                  contentDescription = null,
+                  tint = ZawitcoDarkOrange,
+                  modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  text = "Store Map",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = ZawitcoDarkOrange
+                )
+              }
+            }
+          }
+        }
+      }
+
+      // ==========================================
+      // HOUSE OWNER QUICK SUMMARY (IBAN / PHONE)
+      // ==========================================
+      if (accommodation.ownerName.isNotBlank() || accommodation.ownerPhone.isNotBlank() || accommodation.ownerIban.isNotBlank()) {
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.padding(horizontal = 4.dp)
+        ) {
+          Icon(
+            imageVector = Icons.Default.AccountBalance,
+            contentDescription = null,
+            tint = Color(0xFF0F766E),
+            modifier = Modifier.size(13.dp)
+          )
+          Spacer(modifier = Modifier.width(4.dp))
+          Text(
+            text = listOfNotNull(
+              accommodation.ownerName.takeIf { it.isNotBlank() }?.let { "Owner: $it" },
+              accommodation.ownerPhone.takeIf { it.isNotBlank() }?.let { "Ph: $it" },
+              accommodation.ownerIban.takeIf { it.isNotBlank() }?.let { "IBAN: ${it.take(10)}..." }
+            ).joinToString(" • "),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
             color = Color.Black,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -415,7 +626,7 @@ fun AccommodationCard(
         }
       }
 
-      Spacer(modifier = Modifier.height(12.dp))
+      Spacer(modifier = Modifier.height(10.dp))
 
       // "View Details" button
       Box(
@@ -424,7 +635,7 @@ fun AccommodationCard(
           .clip(RoundedCornerShape(10.dp))
           .background(ZawitcoLightBlue)
           .clickable { onViewDetails() }
-          .padding(vertical = 11.dp)
+          .padding(vertical = 10.dp)
           .testTag("view_details_button_${accommodation.id}"),
         contentAlignment = Alignment.Center
       ) {
@@ -433,17 +644,17 @@ fun AccommodationCard(
           horizontalArrangement = Arrangement.Center
         ) {
           Text(
-            text = "View Details",
+            text = "View Details & Full Specs",
             color = Color.Black,
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp
+            fontSize = 13.sp
           )
           Spacer(modifier = Modifier.width(6.dp))
           Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
             contentDescription = null,
             tint = Color.Black,
-            modifier = Modifier.size(16.dp)
+            modifier = Modifier.size(15.dp)
           )
         }
       }
