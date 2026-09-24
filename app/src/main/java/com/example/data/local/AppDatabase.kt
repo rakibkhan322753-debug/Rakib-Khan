@@ -8,6 +8,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.data.model.Accommodation
 import com.example.data.model.AccommodationReport
 import com.example.data.model.AccommodationRequirement
+import com.example.data.model.AuditLog
 import com.example.data.model.Location
 import com.example.data.model.Station
 import com.example.data.model.UserAccount
@@ -22,9 +23,10 @@ import kotlinx.coroutines.launch
     AccommodationRequirement::class,
     AccommodationReport::class,
     UserAccount::class,
-    Station::class
+    Station::class,
+    AuditLog::class
   ],
-  version = 6,
+  version = 7,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,6 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
   abstract fun reportDao(): AccommodationReportDao
   abstract fun userAccountDao(): UserAccountDao
   abstract fun stationDao(): StationDao
+  abstract fun auditLogDao(): AuditLogDao
 
   companion object {
     @Volatile
@@ -55,6 +58,22 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    fun getInstance(context: Context): AppDatabase {
+      return INSTANCE ?: synchronized(this) {
+        val defaultScope = CoroutineScope(Dispatchers.IO)
+        val instance = Room.databaseBuilder(
+          context.applicationContext,
+          AppDatabase::class.java,
+          "zawitco_accommodation.db"
+        )
+          .addCallback(DatabaseCallback(defaultScope))
+          .fallbackToDestructiveMigration(dropAllTables = true)
+          .build()
+        INSTANCE = instance
+        instance
+      }
+    }
+
     private class DatabaseCallback(
       private val scope: CoroutineScope
     ) : RoomDatabase.Callback() {
@@ -68,7 +87,8 @@ abstract class AppDatabase : RoomDatabase() {
               database.requirementDao(),
               database.reportDao(),
               database.userAccountDao(),
-              database.stationDao()
+              database.stationDao(),
+              database.auditLogDao()
             )
           }
         }
@@ -80,9 +100,10 @@ abstract class AppDatabase : RoomDatabase() {
         reqDao: AccommodationRequirementDao,
         reportDao: AccommodationReportDao,
         userDao: UserAccountDao,
-        stationDao: StationDao
+        stationDao: StationDao,
+        auditDao: AuditLogDao
       ) {
-        // Initial Accommodations
+        // Initial Accommodations with Core Projects: Keemart DS, Ninja, Warehouse DC, 9 Ground
         val initialAccommodations = listOf(
           Accommodation(
             areaName = "Al Olaya District",
@@ -94,8 +115,8 @@ abstract class AppDatabase : RoomDatabase() {
             activeWorkers = 12,
             accommodationLocationUrl = "https://maps.google.com/?q=24.7136,46.6753",
             storeLocationUrl = "https://maps.google.com/?q=24.7180,46.6800",
-            storeCode = "ST-101",
-            storeName = "Olaya Central Store",
+            storeCode = "KM-101",
+            storeName = "Keemart Olaya Central",
             workerPhone = "+966 50 123 4567",
             workerPhone2 = "+966 50 998 1122",
             ownerName = "Sheikh Abdullah Al-Mansoor",
@@ -106,6 +127,7 @@ abstract class AppDatabase : RoomDatabase() {
             latitude = 24.7136,
             longitude = 46.6753,
             stationName = "Riyadh Central Hub",
+            projectName = "Keemart DS",
             notes = "Prime central location near King Fahd Road. Fully furnished with high-speed internet."
           ),
           Accommodation(
@@ -118,8 +140,8 @@ abstract class AppDatabase : RoomDatabase() {
             activeWorkers = 9,
             accommodationLocationUrl = "https://maps.google.com/?q=24.6657,46.7369",
             storeLocationUrl = "https://maps.google.com/?q=24.6700,46.7400",
-            storeCode = "ST-102",
-            storeName = "Malaz Logistics Store",
+            storeCode = "NJ-202",
+            storeName = "Ninja Express Dark Store",
             workerPhone = "+966 54 321 0987",
             workerPhone2 = "+966 54 887 6655",
             ownerName = "Abu Fahad Al-Otaibi",
@@ -130,6 +152,7 @@ abstract class AppDatabase : RoomDatabase() {
             latitude = 24.6657,
             longitude = 46.7369,
             stationName = "East Riyadh Station",
+            projectName = "Ninja",
             notes = "Spacious staff accommodation, close to public transport and Malaz central market."
           ),
           Accommodation(
@@ -142,8 +165,8 @@ abstract class AppDatabase : RoomDatabase() {
             activeWorkers = 7,
             accommodationLocationUrl = "https://maps.google.com/?q=24.6984,46.7028",
             storeLocationUrl = "https://maps.google.com/?q=24.7000,46.7050",
-            storeCode = "ST-103",
-            storeName = "Sulaimaniya Hub Store",
+            storeCode = "WH-301",
+            storeName = "Warehouse Central DC",
             workerPhone = "+966 53 888 2345",
             workerPhone2 = "+966 53 777 4433",
             ownerName = "Eng. Tariq Al-Ghamdi",
@@ -154,7 +177,33 @@ abstract class AppDatabase : RoomDatabase() {
             latitude = 24.6984,
             longitude = 46.7028,
             stationName = "North Riyadh Depot",
+            projectName = "Warehouse DC",
             notes = "Executive villa unit with dedicated parking and proximity to commercial center."
+          ),
+          Accommodation(
+            areaName = "Al Batha Logistics Sector",
+            villaNumber = "09G",
+            floorNumber = "Ground & 1st",
+            roomNumber = "G01, G02, 101",
+            totalWorkers = 12,
+            totalCapacity = 14,
+            activeWorkers = 11,
+            accommodationLocationUrl = "https://maps.google.com/?q=24.6400,46.7200",
+            storeLocationUrl = "https://maps.google.com/?q=24.6420,46.7250",
+            storeCode = "9G-401",
+            storeName = "9 Ground Field Fleet Depot",
+            workerPhone = "+966 55 333 4455",
+            workerPhone2 = "+966 55 222 1133",
+            ownerName = "Sheikh Nasser Al-Dosari",
+            ownerPhone = "+966 50 888 9900",
+            ownerBankName = "Alinma Bank",
+            ownerIban = "SA6630000008889991112223",
+            googleMapsUrl = "https://maps.google.com/?q=24.6400,46.7200",
+            latitude = 24.6400,
+            longitude = 46.7200,
+            stationName = "South Riyadh Station",
+            projectName = "9 Ground",
+            notes = "Dedicated 9 Ground field operations housing with rapid vehicle parking access."
           )
         )
         dao.insertAll(initialAccommodations)
@@ -317,6 +366,53 @@ abstract class AppDatabase : RoomDatabase() {
           )
         )
         reportDao.insertAll(initialReports)
+
+        // Initial Audit Logs (Tracking modifications, additions, and deletions)
+        val initialAuditLogs = listOf(
+          AuditLog(
+            actionType = "ADD_ACCOMMODATION",
+            entityType = "Accommodation",
+            entityIdentifier = "Al Olaya - Villa 14B",
+            adminUsername = "admin",
+            details = "Added new housing unit assigned to project 'Keemart DS' with 16 bed capacity."
+          ),
+          AuditLog(
+            actionType = "ADD_ACCOMMODATION",
+            entityType = "Accommodation",
+            entityIdentifier = "Al Malaz - Villa 28",
+            adminUsername = "admin",
+            details = "Added staff accommodation for project 'Ninja' linked to Malaz Dark Store."
+          ),
+          AuditLog(
+            actionType = "ADD_ACCOMMODATION",
+            entityType = "Accommodation",
+            entityIdentifier = "Al Sulaimaniya - Villa 07",
+            adminUsername = "admin",
+            details = "Created regional distribution housing assigned to 'Warehouse DC'."
+          ),
+          AuditLog(
+            actionType = "ADD_ACCOMMODATION",
+            entityType = "Accommodation",
+            entityIdentifier = "Al Batha - Villa 09G",
+            adminUsername = "admin",
+            details = "Initialized field logistics staff base for project '9 Ground'."
+          ),
+          AuditLog(
+            actionType = "ADD_REQUIREMENT",
+            entityType = "Requirement",
+            entityIdentifier = "Bed 🛌 (Qty: 2)",
+            adminUsername = "admin",
+            details = "Approved 2 beds request for project workforce expansion in Villa 14B."
+          ),
+          AuditLog(
+            actionType = "ADD_REPORT",
+            entityType = "Report",
+            entityIdentifier = "AC cooling issue in room 202",
+            adminUsername = "admin",
+            details = "Logged urgent air conditioner maintenance ticket."
+          )
+        )
+        auditDao.insertAll(initialAuditLogs)
       }
     }
   }

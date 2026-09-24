@@ -57,6 +57,7 @@ import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate600
+import com.example.ui.theme.Slate700
 import com.example.ui.theme.ZawitcoBlue
 import com.example.ui.theme.ZawitcoDarkOrange
 import com.example.ui.theme.ZawitcoLightBlue
@@ -144,21 +145,23 @@ fun HeaderBar(
             )
           }
 
-          // Data Import Button (Google Sheets & Single Housing Import)
-          IconButton(
-            onClick = onBulkUploadClick,
-            modifier = Modifier
-              .size(34.dp)
-              .clip(CircleShape)
-              .background(ZawitcoLightBlue)
-              .testTag("header_bulk_upload_button")
-          ) {
-            Icon(
-              imageVector = Icons.Default.CloudDownload,
-              contentDescription = "Import Data (Google Sheets / Bulk)",
-              tint = ZawitcoBlue,
-              modifier = Modifier.size(18.dp)
-            )
+          // Data Import Button (Google Sheets & Single Housing Import) - ADMIN ONLY
+          if (isAdmin) {
+            IconButton(
+              onClick = onBulkUploadClick,
+              modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(ZawitcoLightBlue)
+                .testTag("header_bulk_upload_button")
+            ) {
+              Icon(
+                imageVector = Icons.Default.CloudDownload,
+                contentDescription = "Import Data (Google Sheets / Bulk)",
+                tint = ZawitcoBlue,
+                modifier = Modifier.size(18.dp)
+              )
+            }
           }
 
           // Google Cloud / Firebase Cloud Server Backup & Sync Button
@@ -214,14 +217,14 @@ fun HeaderBar(
             )
           }
 
-          // Role Badge / User Indicator
+          // Role Badge / User Indicator with Read-Only indicator for Viewers
           Surface(
             onClick = onAdminClick,
             shape = RoundedCornerShape(8.dp),
-            color = if (isAdmin) LightGreen else ZawitcoLightBlue,
+            color = if (isAdmin) LightGreen else Slate100,
             border = androidx.compose.foundation.BorderStroke(
               1.dp,
-              if (isAdmin) DarkGreen.copy(alpha = 0.4f) else ZawitcoBlue.copy(alpha = 0.4f)
+              if (isAdmin) DarkGreen.copy(alpha = 0.4f) else Slate400.copy(alpha = 0.5f)
             ),
             modifier = Modifier.testTag("header_admin_mode_button")
           ) {
@@ -230,44 +233,46 @@ fun HeaderBar(
               verticalAlignment = Alignment.CenterVertically
             ) {
               Icon(
-                imageVector = if (isAdmin) Icons.Default.LockOpen else Icons.Outlined.Visibility,
+                imageVector = if (isAdmin) Icons.Default.LockOpen else Icons.Default.Lock,
                 contentDescription = null,
-                tint = if (isAdmin) DarkGreen else ZawitcoBlue,
-                modifier = Modifier.size(14.dp)
+                tint = if (isAdmin) DarkGreen else Slate600,
+                modifier = Modifier.size(13.dp)
               )
-              Spacer(modifier = Modifier.width(3.dp))
+              Spacer(modifier = Modifier.width(4.dp))
               Text(
-                text = if (isAdmin) "Admin" else (currentUser?.username?.take(7) ?: "Viewer"),
+                text = if (isAdmin) "Admin" else "Viewer (Read-Only)",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isAdmin) DarkGreen else ZawitcoBlue
+                color = if (isAdmin) DarkGreen else Slate700
               )
             }
           }
 
           // "Add" accommodation button (Admin only)
-          Button(
-            onClick = onAddNewClick,
-            colors = ButtonDefaults.buttonColors(
-              containerColor = if (isAdmin) ZawitcoOrange else Slate200,
-              contentColor = if (isAdmin) Color.White else Slate600
-            ),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier
-              .height(34.dp)
-              .testTag("add_new_accommodation_button")
-          ) {
-            Icon(
-              imageVector = if (isAdmin) Icons.Default.Add else Icons.Default.Lock,
-              contentDescription = "Add Accommodation",
-              modifier = Modifier.size(14.dp)
-            )
-            Spacer(modifier = Modifier.width(2.dp))
-            Text(
-              text = "Add",
-              fontWeight = FontWeight.Bold,
-              fontSize = 11.sp
-            )
+          if (isAdmin) {
+            Button(
+              onClick = onAddNewClick,
+              colors = ButtonDefaults.buttonColors(
+                containerColor = ZawitcoOrange,
+                contentColor = Color.White
+              ),
+              shape = RoundedCornerShape(8.dp),
+              modifier = Modifier
+                .height(34.dp)
+                .testTag("add_new_accommodation_button")
+            ) {
+              Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Add Accommodation",
+                modifier = Modifier.size(14.dp)
+              )
+              Spacer(modifier = Modifier.width(2.dp))
+              Text(
+                text = "Add",
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp
+              )
+            }
           }
 
           // Full Sign Out Button: Returns to Login Interface

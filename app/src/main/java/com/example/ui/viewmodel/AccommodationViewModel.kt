@@ -10,6 +10,8 @@ import com.example.data.cloud.FirebaseCloudBackupService
 import com.example.data.model.Accommodation
 import com.example.data.model.AccommodationReport
 import com.example.data.model.AccommodationRequirement
+import com.example.data.model.AuditLog
+import com.example.data.model.ProjectProgressSummary
 import com.example.data.model.Station
 import com.example.data.model.UserAccount
 import com.example.data.repository.AccommodationRepository
@@ -41,8 +43,8 @@ enum class UserRole {
 
 enum class MainViewTab {
   ACCOMMODATIONS,
-  STATIONS_ANALYTICS,
-  REQUIREMENTS_REPORTS
+  PROJECTS_DASHBOARD,
+  ADMIN_AUDIT_LOGS
 }
 
 sealed interface LoginResult {
@@ -217,6 +219,139 @@ class AccommodationViewModel(
 
   private val _editingAccommodation = MutableStateFlow<Accommodation?>(null)
   val editingAccommodation: StateFlow<Accommodation?> = _editingAccommodation.asStateFlow()
+
+  // ==========================================
+  // AUDIT LOGGING SYSTEM (ADMIN ONLY)
+  // ==========================================
+  val allAuditLogs: StateFlow<List<AuditLog>> =
+    repository.allAuditLogs
+      .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  private val _auditLogFilter = MutableStateFlow("")
+  val auditLogFilter: StateFlow<String> = _auditLogFilter.asStateFlow()
+
+  fun setAuditLogFilter(filter: String) {
+    _auditLogFilter.value = filter
+  }
+
+  val filteredAuditLogs: StateFlow<List<AuditLog>> =
+    combine(allAuditLogs, _auditLogFilter) { logs, filter ->
+      if (filter.isBlank()) logs
+      else logs.filter {
+        it.actionType.contains(filter, ignoreCase = true) ||
+        it.entityType.contains(filter, ignoreCase = true) ||
+        it.entityIdentifier.contains(filter, ignoreCase = true) ||
+        it.adminUsername.contains(filter, ignoreCase = true) ||
+        it.details.contains(filter, ignoreCase = true)
+      }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  fun clearAuditLogs() {
+    if (!isAdmin.value) return
+    viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
+      repository.clearAuditLogs()
+      repository.recordAuditLog(
+        actionType = "CLEAR_AUDIT_LOGS",
+        entityType = "AuditSystem",
+        identifier = "All Logs",
+        adminUsername = currentAdmin,
+        details = "Admin cleared audit history logs."
+      )
+    }
+  }
+
+  // ==========================================
+  // PROJECTS & PRODUCTS PROGRESS ANALYSIS
+  // (Keemart DS, Ninja, Warehouse DC, 9 Ground)
+  // ==========================================
+  private data class ProjectConfigDef(
+    val name: String,
+    val code: String,
+    val category: String,
+    val description: String,
+    val colorHex: Long
+  )
+
+  val projectProgressList: StateFlow<List<ProjectProgressSummary>> =
+    combine(accommodations, allRequirements, allReports) { accList, reqs, reps ->
+      val projectConfigs = listOf(
+        ProjectConfigDef(
+          name = "Keemart DS",
+          code = "KM-DS",
+          category = "Supermarket Delivery & Retail Central Hubs",
+          description = "Fast-moving retail staff fleet and fulfillment housing",
+          colorHex = 0xFF2563EB
+        ),
+        ProjectConfigDef(
+          name = "Ninja",
+          code = "NJ-EX",
+          category = "Rapid Dark-Store Grocery & Quick-Commerce",
+          description = "E-commerce express dispatchers and quick-commerce riders housing",
+          colorHex = 0xFF7C3AED
+        ),
+        ProjectConfigDef(
+          name = "Warehouse DC",
+          code = "WH-DC",
+          category = "Regional Logistics & Central Distribution Center",
+          description = "Heavy storage, pallet operations, and inbound hub workforce base",
+          colorHex = 0xFFD97706
+        ),
+        ProjectConfigDef(
+          name = "9 Ground",
+          code = "9G-OPS",
+          category = "Ground Operations & Fleet Support",
+          description = "Store maintenance, route logistics, and on-ground field service units",
+          colorHex = 0xFFDC2626
+        )
+      )
+
+      projectConfigs.map { cfg ->
+        val assignedAccs = accList.filter { acc ->
+          acc.projectName.equals(cfg.name, ignoreCase = true) ||
+          acc.storeName.contains(cfg.name, ignoreCase = true) ||
+          acc.storeCode.contains(cfg.code.take(2), ignoreCase = true) ||
+          acc.notes.contains(cfg.name, ignoreCase = true)
+        }
+
+        val totalUnits = assignedAccs.size
+        val totalCapacity = assignedAccs.sumOf { it.totalCapacity }
+        val activeWorkers = assignedAccs.sumOf { it.activeWorkers }
+        val occupancyRate = if (totalCapacity > 0) ((activeWorkers.toFloat() / totalCapacity) * 100).toInt() else 0
+
+        val accIds = assignedAccs.map { it.id }.toSet()
+        val pendingReqs = reqs.count { it.accommodationId in accIds && it.status != "Fulfilled" }
+        val openReps = reps.count { it.accommodationId in accIds && it.status != "Resolved" }
+
+        val occupancyScore = if (totalUnits == 0) 70 else occupancyRate.coerceIn(0, 100)
+        val penalty = (pendingReqs * 5 + openReps * 8).coerceAtMost(35)
+        val progress = if (totalUnits == 0) 75 else (occupancyScore - penalty).coerceIn(25, 100)
+
+        val statusLabel = when {
+          progress >= 85 -> "Optimal"
+          progress >= 70 -> "On Track"
+          progress >= 50 -> "Needs Attention"
+          else -> "Under Review"
+        }
+
+        ProjectProgressSummary(
+          projectName = cfg.name,
+          projectCode = cfg.code,
+          category = cfg.category,
+          description = cfg.description,
+          themeColorHex = cfg.colorHex,
+          totalUnits = totalUnits,
+          totalCapacity = totalCapacity,
+          activeWorkers = activeWorkers,
+          occupancyRate = occupancyRate,
+          pendingRequirements = pendingReqs,
+          openReports = openReps,
+          progressPercentage = progress,
+          statusLabel = statusLabel,
+          accommodations = assignedAccs
+        )
+      }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
   init {
     viewModelScope.launch {
@@ -441,6 +576,10 @@ class AccommodationViewModel(
   // BULK DATA UPLOAD & AUTOMATIC LOCATION ANALYSIS
   // ==========================================
   fun openBulkUploadDialog() {
+    if (!isAdmin.value) {
+      _showAdminDialog.value = true
+      return
+    }
     _showBulkUploadDialog.value = true
   }
 
@@ -449,6 +588,10 @@ class AccommodationViewModel(
   }
 
   fun importBulkData(rawCsvText: String, onComplete: (BulkParseResult) -> Unit) {
+    if (!isAdmin.value) {
+      onComplete(BulkParseResult(emptyList(), emptyList(), listOf("Admin permission required"), 0))
+      return
+    }
     viewModelScope.launch {
       val parseResult = BulkDataParser.parseBulkCsv(rawCsvText)
       if (parseResult.accommodations.isNotEmpty()) {
@@ -456,6 +599,16 @@ class AccommodationViewModel(
       }
       if (parseResult.stations.isNotEmpty()) {
         repository.insertStations(parseResult.stations)
+      }
+      if (parseResult.accommodations.isNotEmpty() || parseResult.stations.isNotEmpty()) {
+        val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
+        repository.recordAuditLog(
+          actionType = "BULK_IMPORT",
+          entityType = "BulkData",
+          identifier = "${parseResult.accommodations.size} units",
+          adminUsername = currentAdmin,
+          details = "Imported ${parseResult.accommodations.size} accommodations and ${parseResult.stations.size} stations via CSV/Google Sheets."
+        )
       }
       onComplete(parseResult)
     }
@@ -575,6 +728,10 @@ class AccommodationViewModel(
   }
 
   fun restoreFromCloudServer(context: Context, onResult: (Boolean, String) -> Unit) {
+    if (!isAdmin.value) {
+      onResult(false, "Administrator privileges required to restore cloud data and modify local records.")
+      return
+    }
     viewModelScope.launch {
       _isCloudSyncing.value = true
       _cloudSyncStatusMessage.value = "Fetching all records from Google Cloud Server..."
@@ -633,6 +790,10 @@ class AccommodationViewModel(
   }
 
   fun importJsonBackupString(jsonString: String, onResult: (Boolean, String) -> Unit) {
+    if (!isAdmin.value) {
+      onResult(false, "Administrator privileges required to import records.")
+      return
+    }
     viewModelScope.launch {
       val parsed = FirebaseCloudBackupService.parseJsonBackup(jsonString)
       if (parsed == null) {
@@ -729,7 +890,9 @@ class AccommodationViewModel(
     requestedBy: String,
     notes: String
   ) {
+    if (!isAdmin.value) return
     viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       repository.insertRequirement(
         AccommodationRequirement(
           accommodationId = accommodationId,
@@ -741,19 +904,43 @@ class AccommodationViewModel(
           notes = notes
         )
       )
+      repository.recordAuditLog(
+        actionType = "ADD_REQUIREMENT",
+        entityType = "Requirement",
+        identifier = "$itemName (Qty: $quantity)",
+        adminUsername = currentAdmin,
+        details = "Created requirement for accommodation #$accommodationId (Urgency: $urgency, Requested by: $requestedBy)"
+      )
     }
   }
 
   fun updateRequirementStatus(req: AccommodationRequirement, newStatus: String) {
+    if (!isAdmin.value) return
     viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       repository.updateRequirement(req.copy(status = newStatus))
+      repository.recordAuditLog(
+        actionType = "FULFILL_REQUIREMENT",
+        entityType = "Requirement",
+        identifier = "${req.itemName} (#${req.id})",
+        adminUsername = currentAdmin,
+        details = "Updated status from '${req.status}' to '$newStatus'"
+      )
     }
   }
 
   fun deleteRequirement(req: AccommodationRequirement) {
     if (!isAdmin.value) return
     viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       repository.deleteRequirement(req)
+      repository.recordAuditLog(
+        actionType = "DELETE_REQUIREMENT",
+        entityType = "Requirement",
+        identifier = "${req.itemName} (#${req.id})",
+        adminUsername = currentAdmin,
+        details = "Removed requirement for accommodation #${req.accommodationId}"
+      )
     }
   }
 
@@ -775,7 +962,9 @@ class AccommodationViewModel(
     reportedBy: String,
     reporterPhone: String
   ) {
+    if (!isAdmin.value) return
     viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       repository.insertReport(
         AccommodationReport(
           accommodationId = accommodationId,
@@ -788,19 +977,43 @@ class AccommodationViewModel(
           reporterPhone = reporterPhone
         )
       )
+      repository.recordAuditLog(
+        actionType = "ADD_REPORT",
+        entityType = "Report",
+        identifier = "[$category] $title",
+        adminUsername = currentAdmin,
+        details = "Logged maintenance issue for accommodation #$accommodationId (Severity: $severity, Reported by: $reportedBy)"
+      )
     }
   }
 
   fun updateReportStatus(report: AccommodationReport, newStatus: String) {
+    if (!isAdmin.value) return
     viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       repository.updateReport(report.copy(status = newStatus))
+      repository.recordAuditLog(
+        actionType = "RESOLVE_REPORT",
+        entityType = "Report",
+        identifier = "${report.title} (#${report.id})",
+        adminUsername = currentAdmin,
+        details = "Updated maintenance report status to '$newStatus'"
+      )
     }
   }
 
   fun deleteReport(report: AccommodationReport) {
     if (!isAdmin.value) return
     viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       repository.deleteReport(report)
+      repository.recordAuditLog(
+        actionType = "DELETE_REPORT",
+        entityType = "Report",
+        identifier = "${report.title} (#${report.id})",
+        adminUsername = currentAdmin,
+        details = "Deleted maintenance report ticket."
+      )
     }
   }
 
@@ -837,6 +1050,10 @@ class AccommodationViewModel(
   }
 
   fun importSingleAccommodation(accommodation: Accommodation, onComplete: () -> Unit) {
+    if (!isAdmin.value) {
+      onComplete()
+      return
+    }
     viewModelScope.launch {
       repository.insert(accommodation)
       onComplete()
@@ -870,7 +1087,8 @@ class AccommodationViewModel(
     doorPictureUri: String? = null,
     notes: String = "",
     whatsappGroupUrl: String = "",
-    stationName: String = ""
+    stationName: String = "",
+    projectName: String = ""
   ) {
     if (!isAdmin.value) {
       _showAdminDialog.value = true
@@ -905,13 +1123,29 @@ class AccommodationViewModel(
         doorPictureUri = doorPictureUri,
         notes = notes.trim(),
         whatsappGroupUrl = whatsappGroupUrl.trim(),
-        stationName = stationName.trim().ifBlank { storeName.trim().ifBlank { storeCode.trim() } }
+        stationName = stationName.trim().ifBlank { storeName.trim().ifBlank { storeCode.trim() } },
+        projectName = projectName.trim()
       )
 
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       if (id == 0L) {
-        repository.insert(item)
+        val newId = repository.insert(item)
+        repository.recordAuditLog(
+          actionType = "ADD_ACCOMMODATION",
+          entityType = "Accommodation",
+          identifier = "${item.areaName} - Villa ${item.villaNumber}",
+          adminUsername = currentAdmin,
+          details = "Created new housing unit record #$newId (Capacity: ${item.totalCapacity}, Active: ${item.activeWorkers}, Project: ${item.projectName.ifBlank { "General" }})"
+        )
       } else {
         repository.update(item)
+        repository.recordAuditLog(
+          actionType = "EDIT_ACCOMMODATION",
+          entityType = "Accommodation",
+          identifier = "${item.areaName} - Villa ${item.villaNumber}",
+          adminUsername = currentAdmin,
+          details = "Modified housing unit details (Capacity: ${item.totalCapacity}, Active: ${item.activeWorkers}, Project: ${item.projectName.ifBlank { "General" }})"
+        )
         if (_selectedAccommodation.value?.id == id) {
           _selectedAccommodation.value = item
         }
@@ -926,7 +1160,15 @@ class AccommodationViewModel(
       return
     }
     viewModelScope.launch {
+      val currentAdmin = _currentLoggedUser.value?.username ?: "admin"
       repository.delete(item)
+      repository.recordAuditLog(
+        actionType = "DELETE_ACCOMMODATION",
+        entityType = "Accommodation",
+        identifier = "${item.areaName} - Villa ${item.villaNumber}",
+        adminUsername = currentAdmin,
+        details = "Permanently deleted accommodation #${item.id}."
+      )
       if (_selectedAccommodation.value?.id == item.id) {
         _selectedAccommodation.value = null
       }

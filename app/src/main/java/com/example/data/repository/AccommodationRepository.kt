@@ -3,11 +3,13 @@ package com.example.data.repository
 import com.example.data.local.AccommodationDao
 import com.example.data.local.AccommodationReportDao
 import com.example.data.local.AccommodationRequirementDao
+import com.example.data.local.AuditLogDao
 import com.example.data.local.StationDao
 import com.example.data.local.UserAccountDao
 import com.example.data.model.Accommodation
 import com.example.data.model.AccommodationReport
 import com.example.data.model.AccommodationRequirement
+import com.example.data.model.AuditLog
 import com.example.data.model.Station
 import com.example.data.model.UserAccount
 import kotlinx.coroutines.flow.Flow
@@ -17,12 +19,36 @@ class AccommodationRepository(
   private val reqDao: AccommodationRequirementDao,
   private val reportDao: AccommodationReportDao,
   private val userDao: UserAccountDao,
-  private val stationDao: StationDao
+  private val stationDao: StationDao,
+  private val auditDao: AuditLogDao
 ) {
 
   val allAccommodations: Flow<List<Accommodation>> = dao.getAllAccommodations()
   val allUsers: Flow<List<UserAccount>> = userDao.getAllUsers()
   val allStations: Flow<List<Station>> = stationDao.getAllStations()
+  val allAuditLogs: Flow<List<AuditLog>> = auditDao.getAllLogs()
+
+  fun searchAuditLogs(filter: String): Flow<List<AuditLog>> = auditDao.searchLogs(filter)
+
+  suspend fun recordAuditLog(
+    actionType: String,
+    entityType: String,
+    identifier: String,
+    adminUsername: String,
+    details: String
+  ) {
+    val log = AuditLog(
+      actionType = actionType,
+      entityType = entityType,
+      entityIdentifier = identifier,
+      adminUsername = adminUsername.ifBlank { "admin" },
+      details = details,
+      timestamp = System.currentTimeMillis()
+    )
+    auditDao.insertLog(log)
+  }
+
+  suspend fun clearAuditLogs() = auditDao.clearLogs()
 
   fun getAccommodationById(id: Long): Flow<Accommodation?> = dao.getAccommodationById(id)
 

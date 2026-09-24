@@ -33,5 +33,6 @@ data class Accommodation(
   val notes: String = "",
   val whatsappGroupUrl: String = "",
   val stationName: String = "",            // Assigned station / hub
+  val projectName: String = "",            // Core Project: Keemart DS, Ninja, Warehouse DC, 9 Ground
   val createdAt: Long = System.currentTimeMillis()
 )

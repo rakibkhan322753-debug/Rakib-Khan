@@ -33,8 +33,11 @@ import androidx.compose.material.icons.filled.FilterAltOff
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -65,6 +68,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.os.Build
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import androidx.core.content.ContextCompat
+import com.example.reminder.DailyReminderScheduler
 import com.example.data.local.AppDatabase
 import com.example.data.repository.AccommodationRepository
 import com.example.ui.components.AccommodationCard
@@ -73,6 +83,7 @@ import com.example.ui.components.AddEditAccommodationDialog
 import com.example.ui.components.AdminLoginDialog
 import com.example.ui.components.BulkDataUploadDialog
 import com.example.ui.components.CloudBackupDialog
+import com.example.ui.components.DashboardAndProjectsView
 import com.example.ui.components.ExcelExportDialog
 import com.example.ui.components.HeaderBar
 import com.example.ui.components.LocationAnalyticsView
@@ -106,7 +117,8 @@ class MainActivity : ComponentActivity() {
       reqDao = db.requirementDao(),
       reportDao = db.reportDao(),
       userDao = db.userAccountDao(),
-      stationDao = db.stationDao()
+      stationDao = db.stationDao(),
+      auditDao = db.auditLogDao()
     )
     AccommodationViewModel.provideFactory(repository)
   }
@@ -118,6 +130,8 @@ class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
+    // Schedule background daily alarm manager service (triggers daily notification reminder)
+    DailyReminderScheduler.scheduleDailyReminder(this)
     setContent {
       MyApplicationTheme {
         ZawitcoAccommodationApp(viewModel = viewModel)
@@ -132,6 +146,27 @@ fun ZawitcoAccommodationApp(
   modifier: Modifier = Modifier
 ) {
   val context = LocalContext.current
+
+  // Notification permission launcher for Android 13+ (API 33+)
+  val notificationPermissionLauncher = rememberLauncherForActivityResult(
+    contract = ActivityResultContracts.RequestPermission()
+  ) { isGranted ->
+    if (isGranted) {
+      DailyReminderScheduler.scheduleDailyReminder(context)
+    }
+  }
+
+  LaunchedEffect(Unit) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      val hasPermission = ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.POST_NOTIFICATIONS
+      ) == PackageManager.PERMISSION_GRANTED
+      if (!hasPermission) {
+        notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+      }
+    }
+  }
 
   val currentUserRole by viewModel.currentUserRole.collectAsStateWithLifecycle()
   val currentLoggedUser by viewModel.currentLoggedUser.collectAsStateWithLifecycle()
@@ -176,6 +211,9 @@ fun ZawitcoAccommodationApp(
   val globalWhatsAppUrl by viewModel.globalWhatsAppUrl.collectAsStateWithLifecycle()
   val showWhatsAppDialog by viewModel.showWhatsAppDialog.collectAsStateWithLifecycle()
 
+  val projectProgressList by viewModel.projectProgressList.collectAsStateWithLifecycle()
+  val allAuditLogs by viewModel.allAuditLogs.collectAsStateWithLifecycle()
+
   var isSearchActive by remember { mutableStateOf(false) }
 
   // 1st screen on app launch: Full Sign-In Interface
@@ -214,6 +252,70 @@ fun ZawitcoAccommodationApp(
           onAddNewClick = { viewModel.openAddDialog() },
           onLogout = { viewModel.logout() }
         )
+
+        // Main Navigation Switcher: [Housing Units] [Projects & Products Dashboard] [🔒 Admin Audit Log (if Admin)]
+        TabRow(
+          selectedTabIndex = when (selectedMainTab) {
+            MainViewTab.ACCOMMODATIONS -> 0
+            MainViewTab.PROJECTS_DASHBOARD -> 1
+            MainViewTab.ADMIN_AUDIT_LOGS -> 2
+          },
+          containerColor = Color.White,
+          contentColor = ZawitcoBlue,
+          indicator = { tabPositions ->
+            val index = when (selectedMainTab) {
+              MainViewTab.ACCOMMODATIONS -> 0
+              MainViewTab.PROJECTS_DASHBOARD -> 1
+              MainViewTab.ADMIN_AUDIT_LOGS -> 2
+            }
+            if (index < tabPositions.size) {
+              TabRowDefaults.SecondaryIndicator(
+                modifier = Modifier.tabIndicatorOffset(tabPositions[index]),
+                color = ZawitcoBlue,
+                height = 3.dp
+              )
+            }
+          }
+        ) {
+          Tab(
+            selected = selectedMainTab == MainViewTab.ACCOMMODATIONS,
+            onClick = { viewModel.setMainTab(MainViewTab.ACCOMMODATIONS) },
+            text = {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Home, contentDescription = null, modifier = Modifier.size(15.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Housing Units", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+              }
+            },
+            modifier = Modifier.testTag("nav_tab_housing_units")
+          )
+          Tab(
+            selected = selectedMainTab == MainViewTab.PROJECTS_DASHBOARD,
+            onClick = { viewModel.setMainTab(MainViewTab.PROJECTS_DASHBOARD) },
+            text = {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.TrendingUp, contentDescription = null, modifier = Modifier.size(15.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Projects & Dashboard", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+              }
+            },
+            modifier = Modifier.testTag("nav_tab_projects_dashboard")
+          )
+          if (isAdmin) {
+            Tab(
+              selected = selectedMainTab == MainViewTab.ADMIN_AUDIT_LOGS,
+              onClick = { viewModel.setMainTab(MainViewTab.ADMIN_AUDIT_LOGS) },
+              text = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Icon(Icons.Default.Security, contentDescription = null, modifier = Modifier.size(15.dp), tint = Color(0xFFDC2626))
+                  Spacer(modifier = Modifier.width(4.dp))
+                  Text("🔒 Audit Logs", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color(0xFFDC2626))
+                }
+              },
+              modifier = Modifier.testTag("nav_tab_admin_audit_logs")
+            )
+          }
+        }
       }
     }
   ) { innerPadding ->
@@ -258,7 +360,38 @@ fun ZawitcoAccommodationApp(
             Spacer(modifier = Modifier.height(6.dp))
           }
 
-            Spacer(modifier = Modifier.height(10.dp))
+          // Viewer Read-Only Notice Banner
+          if (!isAdmin) {
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = Color(0xFFF8FAFC),
+              border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Lock,
+                  contentDescription = "Read Only Access",
+                  tint = Slate600,
+                  modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                  text = "Read-Only Mode: You are signed in as Viewer. Adding, modifying, or deleting records requires Administrator access.",
+                  fontSize = 10.5.sp,
+                  color = Slate600,
+                  lineHeight = 14.sp
+                )
+              }
+            }
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
 
             // NOTIFICATIONS ALERT BANNER
             NotificationAlertBanner(
@@ -376,12 +509,14 @@ fun ZawitcoAccommodationApp(
                 )
                 Spacer(modifier = Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                  Button(
-                    onClick = { viewModel.openBulkUploadDialog() },
-                    colors = ButtonDefaults.buttonColors(containerColor = ZawitcoBlue),
-                    shape = RoundedCornerShape(12.dp)
-                  ) {
-                    Text("Bulk Data Upload", fontWeight = FontWeight.Bold, color = Color.White)
+                  if (isAdmin) {
+                    Button(
+                      onClick = { viewModel.openBulkUploadDialog() },
+                      colors = ButtonDefaults.buttonColors(containerColor = ZawitcoBlue),
+                      shape = RoundedCornerShape(12.dp)
+                    ) {
+                      Text("Bulk Data Upload", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
                   }
                   if (filterStationName != null) {
                     OutlinedButton(

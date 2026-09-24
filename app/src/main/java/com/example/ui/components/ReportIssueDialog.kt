@@ -1,6 +1,10 @@
 package com.example.ui.components
 
 import android.widget.Toast
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import com.example.reminder.DailyReminderScheduler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -25,6 +29,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.outlined.Check
@@ -216,26 +221,53 @@ fun ReportIssueDialog(
               )
             }
 
-            Button(
-              onClick = { showAddForm = !showAddForm },
-              colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFDC2626),
-                contentColor = Color.White
-              ),
-              shape = RoundedCornerShape(8.dp),
-              modifier = Modifier.testTag("toggle_add_report_form_button")
-            ) {
-              Icon(
-                imageVector = if (showAddForm) Icons.Default.Close else Icons.Default.Add,
-                contentDescription = null,
-                modifier = Modifier.size(14.dp)
-              )
-              Spacer(modifier = Modifier.width(4.dp))
-              Text(
-                text = if (showAddForm) "Cancel" else "Report Issue",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-              )
+            if (isAdmin) {
+              Button(
+                onClick = { showAddForm = !showAddForm },
+                colors = ButtonDefaults.buttonColors(
+                  containerColor = Color(0xFFDC2626),
+                  contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.testTag("toggle_add_report_form_button")
+              ) {
+                Icon(
+                  imageVector = if (showAddForm) Icons.Default.Close else Icons.Default.Add,
+                  contentDescription = null,
+                  modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  text = if (showAddForm) "Cancel" else "Report Issue",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold
+                )
+              }
+            } else {
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Slate100,
+                border = BorderStroke(1.dp, Slate400.copy(alpha = 0.5f))
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = Slate600,
+                    modifier = Modifier.size(12.dp)
+                  )
+                  Spacer(modifier = Modifier.width(4.dp))
+                  Text(
+                    text = "Read-Only (Viewer)",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate700
+                  )
+                }
+              }
             }
           }
         }
@@ -358,6 +390,38 @@ fun ReportIssueDialog(
                 )
               }
 
+              Spacer(modifier = Modifier.height(8.dp))
+
+              // Auto-generated Date & Time notice
+              val currentTimeFormatted = remember {
+                SimpleDateFormat("EEE, MMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date())
+              }
+              Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Slate100,
+                border = BorderStroke(1.dp, Slate200),
+                modifier = Modifier.fillMaxWidth()
+              ) {
+                Row(
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Icon(
+                    imageVector = Icons.Default.NotificationsActive,
+                    contentDescription = null,
+                    tint = Color(0xFFDC2626),
+                    modifier = Modifier.size(13.dp)
+                  )
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(
+                    text = "Time & Date auto-generated: $currentTimeFormatted",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Slate600
+                  )
+                }
+              }
+
               Spacer(modifier = Modifier.height(12.dp))
 
               Button(
@@ -375,7 +439,9 @@ fun ReportIssueDialog(
                     reportedBy.trim(),
                     reporterPhone.trim()
                   )
-                  Toast.makeText(context, "Issue reported and notified to administration!", Toast.LENGTH_SHORT).show()
+                  // Arm daily 24h alarm reminder
+                  DailyReminderScheduler.scheduleDailyReminder(context)
+                  Toast.makeText(context, "Issue reported! 24h reminder alarm auto-set.", Toast.LENGTH_SHORT).show()
                   title = ""
                   description = ""
                   reportedBy = ""
@@ -498,17 +564,26 @@ fun ReportIssueDialog(
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                      text = "Status: ${report.status}",
-                      fontSize = 11.sp,
-                      fontWeight = FontWeight.SemiBold,
-                      color = if (isResolved) DarkGreen else Color(0xFFE11D48)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                      Text(
+                        text = "Status: ${report.status}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isResolved) DarkGreen else Color(0xFFE11D48)
+                      )
+                      Spacer(modifier = Modifier.width(8.dp))
+                      val formattedDate = SimpleDateFormat("MMM dd, yyyy • hh:mm a", Locale.getDefault()).format(Date(report.createdAt))
+                      Text(
+                        text = "• $formattedDate",
+                        fontSize = 10.sp,
+                        color = Slate500
+                      )
+                    }
                   }
 
                   // Action Buttons
                   Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!isResolved) {
+                    if (isAdmin && !isResolved) {
                       IconButton(
                         onClick = { onUpdateStatus(report, "Resolved") },
                         modifier = Modifier

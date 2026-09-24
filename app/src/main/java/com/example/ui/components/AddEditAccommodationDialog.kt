@@ -99,7 +99,8 @@ fun AddEditAccommodationDialog(
     doorPictureUri: String?,
     notes: String,
     whatsappGroupUrl: String,
-    stationName: String
+    stationName: String,
+    projectName: String
   ) -> Unit,
   onSaveImageToStorage: (Uri) -> String?,
   modifier: Modifier = Modifier
@@ -110,6 +111,7 @@ fun AddEditAccommodationDialog(
   var villaNumber by remember { mutableStateOf(initialItem?.villaNumber ?: "") }
   var floorNumber by remember { mutableStateOf(initialItem?.floorNumber ?: "") }
   var roomNumber by remember { mutableStateOf(initialItem?.roomNumber ?: "") }
+  var projectName by remember { mutableStateOf(initialItem?.projectName ?: "") }
 
   var totalWorkers by remember { mutableStateOf((initialItem?.totalWorkers ?: 0).toString()) }
   var totalCapacity by remember { mutableStateOf((initialItem?.totalCapacity ?: 0).toString()) }
@@ -455,6 +457,57 @@ fun AddEditAccommodationDialog(
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Core Strategic Project Assignment
+        Text(
+          text = "CORE PROJECT ASSIGNMENT (4 PRODUCTS)",
+          fontSize = 11.sp,
+          fontWeight = FontWeight.Bold,
+          color = ZawitcoBlue,
+          letterSpacing = 0.8.sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+          modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+          horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+          listOf("Keemart DS", "Ninja", "Warehouse DC", "9 Ground").forEach { pName ->
+            val isSelected = projectName.equals(pName, ignoreCase = true)
+            Surface(
+              onClick = {
+                projectName = if (isSelected) "" else pName
+              },
+              shape = RoundedCornerShape(8.dp),
+              color = if (isSelected) ZawitcoBlue else Slate100,
+              border = BorderStroke(1.dp, if (isSelected) ZawitcoBlue else Slate200)
+            ) {
+              Text(
+                text = pName,
+                fontSize = 11.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) Color.White else Slate700,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+              )
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        OutlinedTextField(
+          value = projectName,
+          onValueChange = { projectName = it },
+          label = { Text("Assigned Project Name") },
+          placeholder = { Text("Keemart DS, Ninja, Warehouse DC, 9 Ground") },
+          singleLine = true,
+          modifier = Modifier.fillMaxWidth(),
+          shape = RoundedCornerShape(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
         // House Owner Details
         Text(
           text = "HOUSE OWNER & BANK ACCOUNT DETAILS",
@@ -586,7 +639,8 @@ fun AddEditAccommodationDialog(
                 doorPictureUri,
                 notes.trim(),
                 whatsappGroupUrl.trim(),
-                storeName.trim().ifBlank { storeCode.trim() }
+                storeName.trim().ifBlank { storeCode.trim() },
+                projectName.trim()
               )
             },
             colors = ButtonDefaults.buttonColors(containerColor = ZawitcoBlue, contentColor = Color.White),

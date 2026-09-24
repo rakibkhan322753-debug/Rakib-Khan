@@ -24,6 +24,12 @@ interface AccommodationReportDao {
   @Query("SELECT COUNT(*) FROM accommodation_reports WHERE accommodationId = :accId AND status != 'Resolved'")
   fun getActiveReportsCountForAcc(accId: Long): Flow<Int>
 
+  @Query("SELECT * FROM accommodation_reports WHERE status != 'Resolved' ORDER BY createdAt DESC")
+  suspend fun getOpenReportsList(): List<AccommodationReport>
+
+  @Query("SELECT COUNT(*) FROM accommodation_reports WHERE status != 'Resolved'")
+  suspend fun getOpenReportsCountSync(): Int
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertReport(report: AccommodationReport): Long
 

@@ -34,6 +34,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.Alarm
+import com.example.reminder.DailyReminderScheduler
 import com.example.ui.theme.DarkGreen
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate600
@@ -48,8 +52,10 @@ fun NotificationAlertBanner(
   activeReportsCount: Int,
   onOpenRequirements: () -> Unit,
   onOpenReports: () -> Unit,
+  onTestReminder: (() -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
+  val context = LocalContext.current
   val hasData = activeRequirementsCount > 0 || activeReportsCount > 0
 
   if (!hasData) return
@@ -211,6 +217,57 @@ fun NotificationAlertBanner(
               )
             }
           }
+        }
+      }
+
+      Spacer(modifier = Modifier.height(10.dp))
+
+      // 24-Hour Alarm Manager Indicator & Instant Trigger Test Button
+      Row(
+        modifier = Modifier
+          .fillMaxWidth()
+          .clip(RoundedCornerShape(8.dp))
+          .background(Color(0xFFFED7AA).copy(alpha = 0.5f))
+          .padding(horizontal = 8.dp, vertical = 5.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+      ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(
+            imageVector = Icons.Default.Alarm,
+            contentDescription = null,
+            tint = Color(0xFFC2410C),
+            modifier = Modifier.size(14.dp)
+          )
+          Spacer(modifier = Modifier.width(6.dp))
+          Text(
+            text = "Daily 24h Alarm active (9:00 AM daily reminder)",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF9A3412)
+          )
+        }
+
+        Surface(
+          onClick = {
+            if (onTestReminder != null) {
+              onTestReminder()
+            } else {
+              DailyReminderScheduler.triggerImmediateCheck(context)
+              Toast.makeText(context, "Checking pending items & sending daily notification reminder...", Toast.LENGTH_SHORT).show()
+            }
+          },
+          shape = RoundedCornerShape(6.dp),
+          color = Color(0xFFEA580C),
+          modifier = Modifier.testTag("test_daily_reminder_button")
+        ) {
+          Text(
+            text = "Test Alarm",
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+          )
         }
       }
     }

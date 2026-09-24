@@ -24,6 +24,12 @@ interface AccommodationRequirementDao {
   @Query("SELECT COUNT(*) FROM accommodation_requirements WHERE accommodationId = :accId AND status != 'Fulfilled'")
   fun getActiveRequirementsCountForAcc(accId: Long): Flow<Int>
 
+  @Query("SELECT * FROM accommodation_requirements WHERE status != 'Fulfilled' ORDER BY createdAt DESC")
+  suspend fun getPendingRequirementsList(): List<AccommodationRequirement>
+
+  @Query("SELECT COUNT(*) FROM accommodation_requirements WHERE status != 'Fulfilled'")
+  suspend fun getPendingRequirementsCountSync(): Int
+
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun insertRequirement(req: AccommodationRequirement): Long
 
